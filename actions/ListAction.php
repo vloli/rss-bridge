@@ -1,57 +1,36 @@
 <?php
-/**
- * This file is part of RSS-Bridge, a PHP project capable of generating RSS and
- * Atom feeds for websites that don't have one.
- *
- * For the full license information, please view the UNLICENSE file distributed
- * with this source code.
- *
- * @package	Core
- * @license	http://unlicense.org/ UNLICENSE
- * @link	https://github.com/rss-bridge/rss-bridge
- */
 
-class ListAction extends ActionAbstract {
-	public function execute() {
-		$list = new StdClass();
-		$list->bridges = array();
-		$list->total = 0;
+class ListAction implements ActionInterface
+{
+    private BridgeFactory $bridgeFactory;
 
-		$bridgeFac = new \BridgeFactory();
-		$bridgeFac->setWorkingDir(PATH_LIB_BRIDGES);
+    public function __construct(
+        BridgeFactory $bridgeFactory
+    ) {
+        $this->bridgeFactory = $bridgeFactory;
+    }
 
-		foreach($bridgeFac->getBridgeNames() as $bridgeName) {
+    public function __invoke(Request $request): Response
+    {
+        $list = new \stdClass();
+        $list->bridges = [];
+        $list->total = 0;
 
-			$bridge = $bridgeFac->create($bridgeName);
+        foreach ($this->bridgeFactory->getBridgeClassNames() as $bridgeClassName) {
+            $bridge = $this->bridgeFactory->create($bridgeClassName);
 
-			if($bridge === false) { // Broken bridge, show as inactive
-
-				$list->bridges[$bridgeName] = array(
-					'status' => 'inactive'
-				);
-
-				continue;
-
-			}
-
-			$status = $bridgeFac->isWhitelisted($bridgeName) ? 'active' : 'inactive';
-
-			$list->bridges[$bridgeName] = array(
-				'status' => $status,
-				'uri' => $bridge->getURI(),
-				'donationUri' => $bridge->getDonationURI(),
-				'name' => $bridge->getName(),
-				'icon' => $bridge->getIcon(),
-				'parameters' => $bridge->getParameters(),
-				'maintainer' => $bridge->getMaintainer(),
-				'description' => $bridge->getDescription()
-			);
-
-		}
-
-		$list->total = count($list->bridges);
-
-		header('Content-Type: application/json');
-		echo json_encode($list, JSON_PRETTY_PRINT);
-	}
+            $list->bridges[$bridgeClassName] = [
+                'status'        => $this->bridgeFactory->isEnabled($bridgeClassName) ? 'active' : 'inactive',
+                'uri'           => $bridge->getURI(),
+                'donationUri'   => $bridge->getDonationURI(),
+                'name'          => $bridge->getName(),
+                'icon'          => $bridge->getIcon(),
+                'parameters'    => $bridge->getParameters(),
+                'maintainer'    => $bridge->getMaintainer(),
+                'description'   => $bridge->getDescription()
+            ];
+        }
+        $list->total = count($list->bridges);
+        return new Response(Json::encode($list), 200, ['content-type' => 'application/json']);
+    }
 }

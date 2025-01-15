@@ -1,225 +1,216 @@
 <?php
-require_once __DIR__ . '/../lib/rssbridge.php';
 
+namespace RssBridge\Tests;
+
+use BridgeAbstract;
+use FeedExpander;
 use PHPUnit\Framework\TestCase;
 
-class BridgeImplementationTest extends TestCase {
-	private $class;
-	private $obj;
+class BridgeImplementationTest extends TestCase
+{
+    private string $className;
+    private BridgeAbstract $bridge;
 
-	/**
-	 * @dataProvider dataBridgesProvider
-	 */
-	public function testClassName($path) {
-		$this->setBridge($path);
-		$this->assertTrue($this->class === ucfirst($this->class), 'class name must start with uppercase character');
-		$this->assertEquals(0, substr_count($this->class, ' '), 'class name must not contain spaces');
-		$this->assertStringEndsWith('Bridge', $this->class, 'class name must end with "Bridge"');
-	}
+    /**
+     * @dataProvider dataBridgesProvider
+     */
+    public function testClassName($path)
+    {
+        $this->setBridge($path);
+        $this->assertTrue($this->className === ucfirst($this->className), 'class name must start with uppercase character');
+        $this->assertEquals(0, substr_count($this->className, ' '), 'class name must not contain spaces');
+        $this->assertStringEndsWith('Bridge', $this->className, 'class name must end with "Bridge"');
+    }
 
-	/**
-	 * @dataProvider dataBridgesProvider
-	 */
-	public function testClassType($path) {
-		$this->setBridge($path);
-		$this->assertInstanceOf(BridgeInterface::class, $this->obj);
-	}
+    /**
+     * @dataProvider dataBridgesProvider
+     */
+    public function testClassType($path)
+    {
+        $this->setBridge($path);
+        $this->assertInstanceOf(BridgeAbstract::class, $this->bridge);
+    }
 
-	/**
-	 * @dataProvider dataBridgesProvider
-	 */
-	public function testConstants($path) {
-		$this->setBridge($path);
+    /**
+     * @dataProvider dataBridgesProvider
+     */
+    public function testConstants($path)
+    {
+        $this->setBridge($path);
 
-		$this->assertInternalType('string', $this->obj::NAME, 'class::NAME');
-		$this->assertNotEmpty($this->obj::NAME, 'class::NAME');
-		$this->assertInternalType('string', $this->obj::URI, 'class::URI');
-		$this->assertNotEmpty($this->obj::URI, 'class::URI');
-		$this->assertInternalType('string', $this->obj::DESCRIPTION, 'class::DESCRIPTION');
-		$this->assertNotEmpty($this->obj::DESCRIPTION, 'class::DESCRIPTION');
-		$this->assertInternalType('string', $this->obj::MAINTAINER, 'class::MAINTAINER');
-		$this->assertNotEmpty($this->obj::MAINTAINER, 'class::MAINTAINER');
+        $this->assertIsString($this->bridge::NAME, 'class::NAME');
+        $this->assertNotEmpty($this->bridge::NAME, 'class::NAME');
+        $this->assertIsString($this->bridge::URI, 'class::URI');
+        $this->assertNotEmpty($this->bridge::URI, 'class::URI');
+        $this->assertIsString($this->bridge::DESCRIPTION, 'class::DESCRIPTION');
+        $this->assertNotEmpty($this->bridge::DESCRIPTION, 'class::DESCRIPTION');
+        $this->assertIsString($this->bridge::MAINTAINER, 'class::MAINTAINER');
+        $this->assertNotEmpty($this->bridge::MAINTAINER, 'class::MAINTAINER');
 
-		$this->assertInternalType('array', $this->obj::PARAMETERS, 'class::PARAMETERS');
-		$this->assertInternalType('int', $this->obj::CACHE_TIMEOUT, 'class::CACHE_TIMEOUT');
-		$this->assertGreaterThanOrEqual(0, $this->obj::CACHE_TIMEOUT, 'class::CACHE_TIMEOUT');
-	}
+        $this->assertIsArray($this->bridge::PARAMETERS, 'class::PARAMETERS');
+        $this->assertIsInt($this->bridge::CACHE_TIMEOUT, 'class::CACHE_TIMEOUT');
+        $this->assertGreaterThanOrEqual(0, $this->bridge::CACHE_TIMEOUT, 'class::CACHE_TIMEOUT');
+    }
 
-	/**
-	 * @dataProvider dataBridgesProvider
-	 */
-	public function testParameters($path) {
-		$this->setBridge($path);
+    /**
+     * @dataProvider dataBridgesProvider
+     */
+    public function testParameters($path)
+    {
+        $this->setBridge($path);
 
-		$multiMinimum = 2;
-		if (isset($this->obj::PARAMETERS['global'])) ++$multiMinimum;
-		$multiContexts = (count($this->obj::PARAMETERS) >= $multiMinimum);
-		$paramsSeen = array();
+        $multiMinimum = 2;
+        if (isset($this->bridge::PARAMETERS['global'])) {
+            ++$multiMinimum;
+        }
+        $multiContexts = (count($this->bridge::PARAMETERS) >= $multiMinimum);
+        $paramsSeen = [];
 
-		$allowedTypes = array(
-			'text',
-			'number',
-			'list',
-			'checkbox'
-		);
+        $allowedTypes = [
+            'text',
+            'number',
+            'list',
+            'checkbox',
+        ];
 
-		foreach($this->obj::PARAMETERS as $context => $params) {
-			if ($multiContexts) {
-				$this->assertInternalType('string', $context, 'invalid context name');
-				$this->assertNotEmpty($context, 'empty context name');
-			}
+        foreach ($this->bridge::PARAMETERS as $context => $params) {
+            if ($multiContexts) {
+                $this->assertIsString($context, 'invalid context name');
+                $this->assertNotEmpty($context, 'The context name cannot be empty');
+            }
 
-			if (empty($params)) {
-				continue;
-			}
+            if (empty($params)) {
+                continue;
+            }
 
-			foreach ($paramsSeen as $seen) {
-				$this->assertNotEquals($seen, $params, 'same set of parameters not allowed');
-			}
-			$paramsSeen[] = $params;
+            foreach ($paramsSeen as $seen) {
+                $this->assertNotEquals($seen, $params, 'same set of parameters not allowed');
+            }
+            $paramsSeen[] = $params;
 
-			foreach ($params as $field => $options) {
-				$this->assertInternalType('string', $field, $field . ': invalid id');
-				$this->assertNotEmpty($field, $field . ':empty id');
+            foreach ($params as $field => $options) {
+                $this->assertIsString($field, $field . ': invalid id');
+                $this->assertNotEmpty($field, $field . ':empty id');
 
-				$this->assertInternalType('string', $options['name'], $field . ': invalid name');
-				$this->assertNotEmpty($options['name'], $field . ': empty name');
+                $this->assertIsString($options['name'], $field . ': invalid name');
+                $this->assertNotEmpty($options['name'], $field . ': empty name');
 
-				if (isset($options['type'])) {
-					$this->assertInternalType('string', $options['type'], $field . ': invalid type');
-					$this->assertContains($options['type'], $allowedTypes, $field . ': unknown type');
+                if (isset($options['type'])) {
+                    $this->assertIsString($options['type'], $field . ': invalid type');
+                    $this->assertContains($options['type'], $allowedTypes, $field . ': unknown type');
 
-					if ($options['type'] == 'list') {
-						$this->assertArrayHasKey('values', $options, $field . ': missing list values');
-						$this->assertInternalType('array', $options['values'], $field . ': invalid list values');
-						$this->assertNotEmpty($options['values'], $field . ': empty list values');
+                    if ($options['type'] == 'list') {
+                        $this->assertArrayHasKey('values', $options, $field . ': missing list values');
+                        $this->assertIsArray($options['values'], $field . ': invalid list values');
+                        $this->assertNotEmpty($options['values'], $field . ': empty list values');
 
-						foreach ($options['values'] as $valueName => $value) {
-							$this->assertInternalType('string', $valueName, $field . ': invalid value name');
-						}
-					}
-				}
+                        foreach ($options['values'] as $valueName => $value) {
+                            $this->assertIsString($valueName, $field . ': invalid value name');
+                        }
+                    }
+                }
 
-				if (isset($options['required'])) {
-					$this->assertInternalType('bool', $options['required'], $field . ': invalid required');
+                if (isset($options['required'])) {
+                    $this->assertIsBool($options['required'], $field . ': invalid required');
 
-					if($options['required'] === true && isset($options['type'])) {
-						switch($options['type']) {
-							case 'list':
-							case 'checkbox':
-								$this->assertArrayNotHasKey(
-									'required',
-									$options,
-									$field . ': "required" attribute not supported for ' . $options['type']
-								);
-								break;
-						}
-					}
-				}
+                    if ($options['required'] === true && isset($options['type'])) {
+                        switch ($options['type']) {
+                            case 'list':
+                            case 'checkbox':
+                                $this->assertArrayNotHasKey(
+                                    'required',
+                                    $options,
+                                    $field . ': "required" attribute not supported for ' . $options['type']
+                                );
+                                break;
+                        }
+                    }
+                }
 
-				if (isset($options['title'])) {
-					$this->assertInternalType('string', $options['title'], $field . ': invalid title');
-					$this->assertNotEmpty($options['title'], $field . ': empty title');
-				}
+                if (isset($options['title'])) {
+                    $this->assertIsString($options['title'], $field . ': invalid title');
+                    $this->assertNotEmpty($options['title'], $field . ': empty title');
+                }
 
-				if (isset($options['pattern'])) {
-					$this->assertInternalType('string', $options['pattern'], $field . ': invalid pattern');
-					$this->assertNotEquals('', $options['pattern'], $field . ': empty pattern');
-				}
+                if (isset($options['pattern'])) {
+                    $this->assertIsString($options['pattern'], $field . ': invalid pattern');
+                    $this->assertNotEquals('', $options['pattern'], $field . ': empty pattern');
+                }
 
-				if (isset($options['exampleValue'])) {
-					if (is_string($options['exampleValue']))
-						$this->assertNotEquals('', $options['exampleValue'], $field . ': empty exampleValue');
-				}
+                if (isset($options['exampleValue'])) {
+                    if (is_string($options['exampleValue'])) {
+                        $this->assertNotEquals('', $options['exampleValue'], $field . ': empty exampleValue');
+                    }
+                }
 
-				if (isset($options['defaultValue'])) {
-					if (is_string($options['defaultValue']))
-						$this->assertNotEquals('', $options['defaultValue'], $field . ': empty defaultValue');
-				}
-			}
-		}
+                if (isset($options['defaultValue'])) {
+                    if (is_string($options['defaultValue'])) {
+                        $this->assertNotEquals('', $options['defaultValue'], $field . ': empty defaultValue');
+                    }
+                }
+            }
+        }
 
-		foreach($this->obj::TEST_DETECT_PARAMETERS as $url => $params) {
-			$this->assertEquals($this->obj->detectParameters($url), $params);
-		}
+        foreach ($this->bridge::TEST_DETECT_PARAMETERS as $url => $params) {
+            $detectedParameters = $this->bridge->detectParameters($url);
+            $this->assertEquals($detectedParameters, $params);
+        }
+    }
 
-		$this->assertTrue(true);
-	}
+    /**
+     * @dataProvider dataBridgesProvider
+     */
+    public function testMethodValues($path)
+    {
+        $this->setBridge($path);
 
-	/**
-	 * @dataProvider dataBridgesProvider
-	 */
-	public function testVisibleMethods($path) {
-		$allowedBridgeAbstract = get_class_methods(BridgeAbstract::class);
-		sort($allowedBridgeAbstract);
-		$allowedFeedExpander = get_class_methods(FeedExpander::class);
-		sort($allowedFeedExpander);
+        $value = $this->bridge->getDescription();
+        $this->assertIsString($value, '$class->getDescription()');
+        $this->assertNotEmpty($value, '$class->getDescription()');
 
-		$this->setBridge($path);
+        $value = $this->bridge->getMaintainer();
+        $this->assertIsString($value, '$class->getMaintainer()');
+        $this->assertNotEmpty($value, '$class->getMaintainer()');
 
-		$methods = get_class_methods($this->obj);
-		sort($methods);
-		if ($this->obj instanceof FeedExpander) {
-			$this->assertEquals($allowedFeedExpander, $methods);
-		} else {
-			$this->assertEquals($allowedBridgeAbstract, $methods);
-		}
-	}
+        $value = $this->bridge->getName();
+        $this->assertIsString($value, '$class->getName()');
+        $this->assertNotEmpty($value, '$class->getName()');
 
-	/**
-	 * @dataProvider dataBridgesProvider
-	 */
-	public function testMethodValues($path) {
-		$this->setBridge($path);
+        $value = $this->bridge->getURI();
+        $this->assertIsString($value, '$class->getURI()');
+        $this->assertNotEmpty($value, '$class->getURI()');
 
-		$value = $this->obj->getDescription();
-		$this->assertInternalType('string', $value, '$class->getDescription()');
-		$this->assertNotEmpty($value, '$class->getDescription()');
+        $value = $this->bridge->getIcon();
+        $this->assertIsString($value, '$class->getIcon()');
+    }
 
-		$value = $this->obj->getMaintainer();
-		$this->assertInternalType('string', $value, '$class->getMaintainer()');
-		$this->assertNotEmpty($value, '$class->getMaintainer()');
+    /**
+     * @dataProvider dataBridgesProvider
+     */
+    public function testUri($path)
+    {
+        $this->setBridge($path);
 
-		$value = $this->obj->getName();
-		$this->assertInternalType('string', $value, '$class->getName()');
-		$this->assertNotEmpty($value, '$class->getName()');
+        $this->assertNotFalse(filter_var($this->bridge::URI, FILTER_VALIDATE_URL));
+        $this->assertNotFalse(filter_var($this->bridge->getURI(), FILTER_VALIDATE_URL));
+    }
 
-		$value = $this->obj->getURI();
-		$this->assertInternalType('string', $value, '$class->getURI()');
-		$this->assertNotEmpty($value, '$class->getURI()');
+    public function dataBridgesProvider()
+    {
+        $bridges = [];
+        foreach (glob(__DIR__ . '/../bridges/*Bridge.php') as $path) {
+            $bridges[basename($path, '.php')] = [$path];
+        }
+        return $bridges;
+    }
 
-		$value = $this->obj->getIcon();
-		$this->assertInternalType('string', $value, '$class->getIcon()');
-	}
-
-	/**
-	 * @dataProvider dataBridgesProvider
-	 */
-	public function testUri($path) {
-		$this->setBridge($path);
-
-		$this->checkUrl($this->obj::URI);
-		$this->checkUrl($this->obj->getURI());
-	}
-
-	////////////////////////////////////////////////////////////////////////////
-
-	public function dataBridgesProvider() {
-		$bridges = array();
-		foreach (glob(PATH_LIB_BRIDGES . '*.php') as $path) {
-			$bridges[basename($path, '.php')] = array($path);
-		}
-		return $bridges;
-	}
-
-	private function setBridge($path) {
-		require_once $path;
-		$this->class = basename($path, '.php');
-		$this->assertTrue(class_exists($this->class), 'class ' . $this->class . ' doesn\'t exist');
-		$this->obj = new $this->class();
-	}
-
-	private function checkUrl($url) {
-		$this->assertNotFalse(filter_var($url, FILTER_VALIDATE_URL), 'no valid URL: ' . $url);
-	}
+    private function setBridge($path)
+    {
+        $this->className = '\\' . basename($path, '.php');
+        $this->assertTrue(class_exists($this->className), 'class ' . $this->className . ' doesn\'t exist');
+        $this->bridge = new $this->className(
+            new \NullCache(),
+            new \NullLogger(),
+        );
+    }
 }

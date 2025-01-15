@@ -6,7 +6,6 @@ data/
 *.pydevproject
 .project
 .metadata
-bin/
 tmp/
 *.tmp
 *.bak
@@ -213,6 +212,7 @@ pip-log.txt
 
 # Unit test / coverage reports
 .coverage
+.phpunit.result.cache
 .tox
 
 #Translations
@@ -228,6 +228,10 @@ pip-log.txt
 /whitelist.txt
 DEBUG
 config.ini.php
+config/*
+!config/nginx.conf
+!config/php-fpm.conf
+!config/php.ini
 
 ######################
 ## VisualStudioCode ##

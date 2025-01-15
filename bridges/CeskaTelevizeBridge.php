@@ -1,84 +1,83 @@
 <?php
 
-class CeskaTelevizeBridge extends BridgeAbstract {
+class CeskaTelevizeBridge extends BridgeAbstract
+{
+    const NAME = 'Česká televize Bridge';
+    const URI = 'https://www.ceskatelevize.cz';
+    const CACHE_TIMEOUT = 3600;
+    const DESCRIPTION = 'Return newest videos';
+    const MAINTAINER = 'kolarcz';
 
-	const NAME = 'Česká televize Bridge';
-	const URI = 'https://www.ceskatelevize.cz';
-	const CACHE_TIMEOUT = 3600;
-	const DESCRIPTION = 'Return newest videos';
-	const MAINTAINER = 'kolarcz';
+    const PARAMETERS = [
+        [
+            'url' => [
+                'name' => 'url to the show',
+                'required' => true,
+                'exampleValue' => 'https://www.ceskatelevize.cz/porady/1097181328-udalosti/'
+            ]
+        ]
+    ];
 
-	const PARAMETERS = array(
-		array(
-			'url' => array(
-				'name' => 'url to the show',
-				'required' => true,
-				'exampleValue' => 'https://www.ceskatelevize.cz/porady/1097181328-udalosti/dily/'
-			)
-		)
-	);
+    public function collectData()
+    {
+        $url = $this->getInput('url');
 
-	private function fixChars($text) {
-		return html_entity_decode($text, ENT_QUOTES, 'UTF-8');
-	}
+        $validUrl = '/^(https:\/\/www\.ceskatelevize\.cz\/porady\/\d+-[a-z0-9-]+\/)(bonus\/)?$/';
+        if (!preg_match($validUrl, $url, $match)) {
+            returnServerError('Invalid url');
+        }
 
-	private function getUploadTimeFromString($string) {
-		if (strpos($string, 'dnes') !== false) {
-			return strtotime('today');
-		} elseif (strpos($string, 'včera') !== false) {
-			return strtotime('yesterday');
-		} elseif (!preg_match('/(\d+).\s(\d+).(\s(\d+))?/', $string, $match)) {
-			returnServerError('Could not get date from Česká televize string');
-		}
+        $category = $match[4] ?? 'nove';
+        $fixedUrl = "{$match[1]}dily/{$category}/";
 
-		$date = sprintf('%04d-%02d-%02d', isset($match[3]) ? $match[3] : date('Y'), $match[2], $match[1]);
-		return strtotime($date);
-	}
+        $html = getSimpleHTMLDOM($fixedUrl);
 
-	public function collectData() {
-		$url = $this->getInput('url');
+        $this->feedUri = $fixedUrl;
+        $this->feedName = str_replace('Přehled dílů — ', '', $this->fixChars($html->find('title', 0)->plaintext));
+        if ($category !== 'nove') {
+            $this->feedName .= " ({$category})";
+        }
 
-		$validUrl = '/^(https:\/\/www\.ceskatelevize\.cz\/porady\/\d+-[a-z0-9-]+\/)(dily\/((nove|vysilani)\/)?)?$/';
-		if (!preg_match($validUrl, $url, $match)) {
-			returnServerError('Invalid url');
-		}
+        foreach ($html->find('#episodeListSection a[data-testid=card]') as $element) {
+            $itemContent = $element->find('p[class^=content-]', 0);
+            $itemDate = $element->find('div[class^=playTime-] span, [data-testid=episode-item-broadcast] span', 0);
+            $item = [
+                'title'     => $this->fixChars($element->find('h3', 0)->plaintext),
+                'uri'       => self::URI . $element->getAttribute('href'),
+                'content'   => '<img src="' . $element->find('img', 0)->getAttribute('srcset') . '" /><br />' . $this->fixChars($itemContent->plaintext),
+                'timestamp' => $this->getUploadTimeFromString($itemDate->plaintext),
+            ];
 
-		$category = isset($match[4]) ? $match[4] : 'nove';
-		$fixedUrl = "{$match[1]}dily/{$category}/";
+            $this->items[] = $item;
+        }
+    }
 
-		$html = getSimpleHTMLDOM($fixedUrl)
-			or returnServerError('Could not request Česká televize');
+    private function getUploadTimeFromString($string)
+    {
+        if (strpos($string, 'dnes') !== false) {
+            return strtotime('today');
+        } elseif (strpos($string, 'včera') !== false) {
+            return strtotime('yesterday');
+        } elseif (!preg_match('/(\d+).\s(\d+).(\s(\d+))?/', $string, $match)) {
+            returnServerError('Could not get date from Česká televize string');
+        }
 
-		$this->feedUri = $fixedUrl;
-		$this->feedName = str_replace('Přehled dílů — ', '', $this->fixChars($html->find('title', 0)->plaintext));
-		if ($category !== 'nove') {
-			$this->feedName .= " ({$category})";
-		}
+        $date = sprintf('%04d-%02d-%02d', $match[3] ?? date('Y'), $match[2], $match[1]);
+        return strtotime($date);
+    }
 
-		foreach ($html->find('.episodes-broadcast-content a.episode_list_item') as $element) {
-			$itemTitle = $element->find('.episode_list_item-title', 0);
-			$itemContent = $element->find('.episode_list_item-desc', 0);
-			$itemDate = $element->find('.episode_list_item-date', 0);
-			$itemThumbnail = $element->find('img', 0);
-			$itemUri = self::URI . $element->getAttribute('href');
+    private function fixChars($text)
+    {
+        return html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+    }
 
-			$item = array(
-				'title' => $this->fixChars($itemTitle->plaintext),
-				'uri' => $itemUri,
-				'content' => '<img src="https:' . $itemThumbnail->getAttribute('src') . '" /><br />'
-					. $this->fixChars($itemContent->plaintext),
-				'timestamp' => $this->getUploadTimeFromString($itemDate->plaintext)
-			);
+    public function getURI()
+    {
+        return $this->feedUri ?? parent::getURI();
+    }
 
-			$this->items[] = $item;
-		}
-	}
-
-	public function getURI() {
-		return isset($this->feedUri) ? $this->feedUri : parent::getURI();
-	}
-
-	public function getName() {
-		return isset($this->feedName) ? $this->feedName : parent::getName();
-	}
+    public function getName()
+    {
+        return $this->feedName ?? parent::getName();
+    }
 }

@@ -1,146 +1,206 @@
 <?php
-class RadioMelodieBridge extends BridgeAbstract {
-	const NAME = 'Radio Melodie Actu';
-	const URI = 'https://www.radiomelodie.com';
-	const DESCRIPTION = 'Retourne les actualités publiées par Radio Melodie';
-	const MAINTAINER = 'sysadminstory';
 
-	public function getIcon() {
-		return self::URI . '/img/favicon.png';
-	}
+class RadioMelodieBridge extends BridgeAbstract
+{
+    const NAME = 'Radio Melodie Actu';
+    const URI = 'https://www.radiomelodie.com';
+    const DESCRIPTION = 'Retourne les actualités publiées par Radio Melodie';
+    const MAINTAINER = 'sysadminstory';
 
-	public function collectData(){
-		$html = getSimpleHTMLDOM(self::URI . '/actu/')
-			or returnServerError('Could not request Radio Melodie.');
-		$list = $html->find('div[class=displayList]', 0)->children();
+    public function getIcon()
+    {
+        return self::URI . '/img/favicon.png';
+    }
 
-		$dateFormat = '%A  %e %B %Y à %H:%M';
-		// Set locale and Timezone to parse the date
-		setlocale (LC_TIME, 'fr_FR.utf8');
-		date_default_timezone_set('Europe/Paris');
+    public function collectData()
+    {
+        $html = getSimpleHTMLDOM(self::URI . '/actu/');
+        $list = $html->find('div[class=listArticles]', 0)->children();
 
-		foreach($list as $element) {
-			if($element->tag == 'a') {
-				$articleURL = self::URI . $element->href;
-				$article = getSimpleHTMLDOM($articleURL);
-				$this->rewriteAudioPlayers($article);
-				// Reload the modified content
-				$article = str_get_html($article->save());
-				$textDOM = $article->find('article', 0);
+        foreach ($list as $element) {
+            if ($element->tag == 'a') {
+                $articleURL = self::URI . $element->href;
+                $article = getSimpleHTMLDOM($articleURL);
+                $this->rewriteAudioPlayers($article);
+                // Reload the modified content
+                $article = str_get_html($article->save());
+                $textDOM = $article->find('article', 0);
 
-				// Initialise arrays
-				$item = array();
-				$audio = array();
-				$picture = array();
+                // Remove HTML code for the article title
+                $textDOM->find('h1', 0)->outertext = '';
 
-				// Get the Main picture URL
-				$picture[] = self::URI . $article->find('div[id=pictureTitleSupport]', 0)->find('img', 0)->src;
-				$audioHTML = $article->find('audio');
+                // Fix the CSS for the author
+                $textDOM->find('div[class=author]', 0)->find('img', 0)
+                       ->setAttribute('style', 'width: 60px; margin: 0 15px; display: inline-block; vertical-align: top;');
 
-				// Add the audio element to the enclosure
-				foreach($audioHTML as $audioElement) {
-					$audioURL = $audioElement->src;
-					$audio[] = $audioURL;
-				}
 
-				// Rewrite pictures URL
-				$imgs = $textDOM->find('img[src^="http://www.radiomelodie.com/image.php]');
-				foreach($imgs as $img) {
-					$img->src = $this->rewriteImage($img->src);
-					$article->save();
-				}
+                // Initialise arrays
+                $item = [];
+                $audio = [];
+                $picture = [];
 
-				// Remove Google Ads
-				$ads = $article->find('div[class=adInline]');
-				foreach($ads as $ad) {
-					$ad->outertext = '';
-					$article->save();
-				}
+                // Get the Main picture URL
+                $picture[] = self::URI . $article->find('figure[class*=photoviewer]', 0)->find('img', 0)->src;
+                $audioHTML = $article->find('audio');
 
-				// Remove Radio Melodie Logo
-				$logoHTML = $article->find('div[id=logoArticleRM]', 0);
-				$logoHTML->outertext = '';
-				$article->save();
+                // Add the audio element to the enclosure
+                foreach ($audioHTML as $audioElement) {
+                    $audioURL = $audioElement->src;
+                    $audio[] = $audioURL;
+                }
 
-				$author = $article->find('p[class=AuthorName]', 0)->plaintext;
+                // Rewrite pictures URL
+                $imgs = $textDOM->find('img[src^="http://www.radiomelodie.com/image.php]');
+                foreach ($imgs as $img) {
+                    $img->src = $this->rewriteImage($img->src);
+                    $article->save();
+                }
 
-				// Handle date to timestamp
-				$dateHTML = $article->find('p[class=date]', 0)->plaintext;
-				preg_match('/\| ([^-]*)( - .*|)$/', $dateHTML, $matches);
-				$dateText = $matches[1];
-				$dateArray = strptime($dateText, $dateFormat);
-				$timestamp = mktime(
-					$dateArray['tm_hour'],
-					$dateArray['tm_min'],
-					$dateArray['tm_sec'],
-					$dateArray['tm_mon'] + 1,
-					$dateArray['tm_mday'],
-					$dateArray['tm_year'] + 1900
-				);
+                // Remove Google Ads
+                $ads = $article->find('div[class=adInline]');
+                foreach ($ads as $ad) {
+                    $ad->outertext = '';
+                    $article->save();
+                }
 
-				$item['enclosures'] = array_merge($picture, $audio);
-				$item['author'] = $author;
-				$item['uri'] = $articleURL;
-				$item['title'] = $article->find('meta[property=og:title]', 0)->content;
-				if($timestamp !== false) {
-					$item['timestamp'] = $timestamp;
-				}
+                // Extract the author
+                $author = $article->find('div[class=author]', 0)->children(1)->children(0)->plaintext;
 
-				// Header Image
-				$header = '<img src="' . $picture[0] . '"/>';
+                // Handle date to timestamp
+                $dateHTML = $article->find('div[class=author]', 0)->children(1)->plaintext;
 
-				// Remove the Date and Author part
-				$textDOM->find('div[class=AuthorDate]', 0)->outertext = '';
+                preg_match('/([a-z]{4,10}[ ]{1,2}[0-9]{1,2} [\p{L}]{3,10} [0-9]{4} à [0-9]{2}:[0-9]{2})/mus', $dateHTML, $matches);
+                $dateText = $matches[1];
 
-				// Remove Facebook javascript
-				$textDOM->find('script[src^=https://connect.facebook.net]', 0)->outertext = '';
+                $timestamp = $this->parseDate($dateText);
 
-				// Rewrite relative Links
-				$textDOM = defaultLinkTo($textDOM, self::URI . '/');
+                $item['enclosures'] = array_merge($picture, $audio);
+                $item['author'] = $author;
+                $item['uri'] = $articleURL;
+                $item['title'] = $article->find('meta[property=og:title]', 0)->content;
+                if ($timestamp !== false) {
+                    $item['timestamp'] = $timestamp;
+                }
 
-				$article->save();
-				//$this->rewriteAudioPlayers($textDOM);
-				$text = $textDOM->innertext;
-				$item['content'] = '<h1>' . $item['title'] . '</h1>' . $dateHTML . '<br/>' . $header . $text;
-				$this->items[] = $item;
-			}
-		}
-	}
+                // Remove the share article part
+                $textDOM->find('div[class=share]', 0)->outertext = '';
+                $textDOM->find('div[class=share]', 1)->outertext = '';
 
-	/*
-	 * Function to rewrite image URL to use the real Image URL and not the resized one (which is very slow)
-	 */
-	private function rewriteImage($url)
-	{
-		$parts = explode('?', $url);
-		parse_str(html_entity_decode($parts[1]), $params);
-		return self::URI . '/' . $params['image'];
+                // Rewrite relative Links
+                $textDOM = defaultLinkTo($textDOM, self::URI . '/');
 
-	}
+                $article->save();
+                $text = $textDOM->innertext;
+                $item['content'] = '<h1>' . $item['title'] . '</h1>' . $dateText . '<br/>' . $text;
+                $this->items[] = $item;
+            }
+        }
+    }
 
-	/*
-	 * Function to rewrite Audio Players to use the <audio> tag and not the javascript audio player
-	 */
-	private function rewriteAudioPlayers($html)
-	{
-		// Find all audio Players
-		$audioPlayers = $html->find('div[class=audioPlayer]');
+    /*
+     * Function to rewrite image URL to use the real Image URL and not the resized one (which is very slow)
+     */
+    private function rewriteImage($url)
+    {
+        $parts = explode('?', $url);
+        parse_str(html_entity_decode($parts[1]), $params);
+        return self::URI . '/' . $params['image'];
+    }
 
-		foreach($audioPlayers as $audioPlayer) {
-			// Get the javascript content below the player
-			$js = $audioPlayer->next_sibling();
+    /*
+     * Function to rewrite Audio Players to use the <audio> tag and not the javascript audio player
+     */
+    private function rewriteAudioPlayers($html)
+    {
+        // Find all audio Players
+        $audioPlayers = $html->find('div[class=audioPlayer]');
 
-			// Extract the audio file URL
-			preg_match('/wavesurfer[0-9]+.load\(\'(.*)\'\)/m', $js->innertext, $urls);
+        foreach ($audioPlayers as $audioPlayer) {
+            // Get the javascript content below the player
+            $js = $audioPlayer->next_sibling();
 
-			// Create the plain HTML <audio> content to play this audio file
-			$content = '<audio style="width: 100%" src="' . $urls[1] . '" controls ></audio>';
+            // Extract the audio file URL
+            preg_match('/wavesurfer[0-9]+.load\(\'(.*)\'\)/m', $js->innertext, $urls);
 
-			// Replace the <script> tag by the <audio> tag
-			$js->outertext = $content;
-			// Remove the initial Audio Player
-			$audioPlayer->outertext = '';
-		}
+            // Create the plain HTML <audio> content to play this audio file
+            $content = '<audio style="width: 100%" src="' . $urls[1] . '" controls ></audio>';
 
-	}
+            // Replace the <script> tag by the <audio> tag
+            $js->outertext = $content;
+            // Remove the initial Audio Player
+            $audioPlayer->outertext = '';
+        }
+    }
+
+    /*
+     * Function to parse the article date
+     */
+    private function parseDate($date_fr)
+    {
+        // French date texts
+        $search_fr = [
+            'janvier',
+            'février',
+            'mars',
+            'avril',
+            'mai',
+            'juin',
+            'juillet',
+            'août',
+            'septembre',
+            'octobre',
+            'novembre',
+            'décembre',
+            'lundi',
+            'mardi',
+            'mercredi',
+            'jeudi',
+            'vendredi',
+            'samedi',
+            'dimanche'
+        ];
+
+        // English replacement date text
+        $replace_en = [
+            'january',
+            'february',
+            'march',
+            'april',
+            'may',
+            'june',
+            'july',
+            'august',
+            'september',
+            'october',
+            'november',
+            'december',
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+            'saturday',
+            'sunday'
+        ];
+
+        $dateFormat = 'l j F Y \à H:i';
+
+        // Convert the date from French to English
+        $date_en = str_replace($search_fr, $replace_en, $date_fr);
+
+        // Parse the date and convert it to an array
+        $date_array = date_parse_from_format($dateFormat, $date_en);
+
+        // Convert the array to a unix timestamp
+        $timestamp = mktime(
+            $date_array['hour'],
+            $date_array['minute'],
+            $date_array['second'],
+            $date_array['month'],
+            $date_array['day'],
+            $date_array['year']
+        );
+
+        return $timestamp;
+    }
 }
