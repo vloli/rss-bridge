@@ -1,310 +1,527 @@
+# RSS-Bridge
+
 ![RSS-Bridge](static/logo_600px.png)
-===
-[![LICENSE](https://img.shields.io/badge/license-UNLICENSE-blue.svg)](UNLICENSE) [![GitHub release](https://img.shields.io/github/release/rss-bridge/rss-bridge.svg?logo=github)](https://github.com/rss-bridge/rss-bridge/releases/latest) [![Debian Release](https://img.shields.io/badge/dynamic/json.svg?logo=debian&label=debian%20release&url=https%3A%2F%2Fsources.debian.org%2Fapi%2Fsrc%2Frss-bridge%2F&query=%24.versions%5B0%5D.version&colorB=blue)](https://tracker.debian.org/pkg/rss-bridge) [![Guix Release](https://img.shields.io/badge/guix%20release-unknown-blue.svg)](https://www.gnu.org/software/guix/packages/R/) [![Actions Status](https://img.shields.io/github/workflow/status/RSS-Bridge/rss-bridge/Tests/master?label=GitHub%20Actions&logo=github)](https://github.com/RSS-Bridge/rss-bridge/actions) [![Docker Build Status](https://img.shields.io/docker/cloud/build/rssbridge/rss-bridge?logo=docker)](https://hub.docker.com/r/rssbridge/rss-bridge/)
 
-RSS-Bridge is a PHP project capable of generating RSS and Atom feeds for websites that don't have one. It can be used on webservers or as a stand-alone application in CLI mode.
+RSS-Bridge is a PHP web application.
 
-**Important**: RSS-Bridge is __not__ a feed reader or feed aggregator, but a tool to generate feeds that are consumed by feed readers and feed aggregators. Find a list of feed aggregators on [Wikipedia](https://en.wikipedia.org/wiki/Comparison_of_feed_aggregators).
+It generates web feeds for websites that don't have one.
 
-Supported sites/pages (examples)
-===
+Officially hosted instance: https://rss-bridge.org/bridge01/
 
-* `Bandcamp` : Returns last release from [bandcamp](https://bandcamp.com/) for a tag
-* `Cryptome` : Returns the most recent documents from [Cryptome.org](http://cryptome.org/)
-* `DansTonChat`: Most recent quotes from [danstonchat.com](http://danstonchat.com/)
-* `DuckDuckGo`: Most recent results from [DuckDuckGo.com](https://duckduckgo.com/)
-* `Facebook` : Returns the latest posts on a page or profile on [Facebook](https://facebook.com/)
-* `FlickrExplore` : [Latest interesting images](http://www.flickr.com/explore) from Flickr
-* `GoogleSearch` : Most recent results from Google Search
-* `Identi.ca` : Identica user timeline (Should be compatible with other Pump.io instances)
-* `Instagram`: Most recent photos from an Instagram user
-* `OpenClassrooms`: Lastest tutorials from [fr.openclassrooms.com](http://fr.openclassrooms.com/)
-* `Pinterest`: Most recent photos from user or search
-* `ScmbBridge`: Newest stories from [secouchermoinsbete.fr](http://secouchermoinsbete.fr/)
-* `ThePirateBay` : Returns the newest indexed torrents from [The Pirate Bay](https://thepiratebay.se/) with keywords
-* `Twitter` : Return keyword/hashtag search or user timeline
-* `Wikipedia`: highlighted articles from [Wikipedia](https://wikipedia.org/) in English, German, French or Esperanto
-* `YouTube` : YouTube user channel, playlist or search
+IRC channel #rssbridge at https://libera.chat/
 
-And [many more](bridges/), thanks to the community!
+[Full documentation](https://rss-bridge.github.io/rss-bridge/index.html)
 
-Output format
-===
+Alternatively find another
+[public instance](https://rss-bridge.github.io/rss-bridge/General/Public_Hosts.html).
 
-RSS-Bridge is capable of producing several output formats:
+Requires minimum PHP 7.4.
 
-* `Atom` : Atom feed, for use in feed readers
-* `Html` : Simple HTML page
-* `Json` : JSON, for consumption by other applications
-* `Mrss` : MRSS feed, for use in feed readers
-* `Plaintext` : Raw text, for consumption by other applications
 
-You can extend RSS-Bridge with your own format, using the [Format API](https://github.com/RSS-Bridge/rss-bridge/wiki/Format-API)!
+[![LICENSE](https://img.shields.io/badge/license-UNLICENSE-blue.svg)](UNLICENSE)
+[![GitHub release](https://img.shields.io/github/release/rss-bridge/rss-bridge.svg?logo=github)](https://github.com/rss-bridge/rss-bridge/releases/latest)
+[![irc.libera.chat](https://img.shields.io/badge/irc.libera.chat-%23rssbridge-blue.svg)](https://web.libera.chat/#rssbridge)
+[![Actions Status](https://img.shields.io/github/actions/workflow/status/RSS-Bridge/rss-bridge/tests.yml?branch=master&label=GitHub%20Actions&logo=github)](https://github.com/RSS-Bridge/rss-bridge/actions)
 
-Screenshot
-===
+|||
+|:-:|:-:|
+|![Screenshot #1](/static/screenshot-1.png?raw=true)|![Screenshot #2](/static/screenshot-2.png?raw=true)|
+|![Screenshot #3](/static/screenshot-3.png?raw=true)|![Screenshot #4](/static/screenshot-4.png?raw=true)|
+|![Screenshot #5](/static/screenshot-5.png?raw=true)|![Screenshot #6](/static/screenshot-6.png?raw=true)|
 
-Welcome screen:
+## A subset of bridges (15/447)
 
-![Screenshot](https://github.com/RSS-Bridge/rss-bridge/wiki/images/screenshot_rss-bridge_welcome.png)
+* `CssSelectorBridge`: [Scrape out a feed using CSS selectors](https://rss-bridge.org/bridge01/#bridge-CssSelectorBridge)
+* `FeedMergeBridge`: [Combine multiple feeds into one](https://rss-bridge.org/bridge01/#bridge-FeedMergeBridge)
+* `FeedReducerBridge`: [Reduce a noisy feed by some percentage](https://rss-bridge.org/bridge01/#bridge-FeedReducerBridge)
+* `FilterBridge`: [Filter a feed by excluding/including items by keyword](https://rss-bridge.org/bridge01/#bridge-FilterBridge)
+* `GettrBridge`: [Fetches the latest posts from a GETTR user](https://rss-bridge.org/bridge01/#bridge-GettrBridge)
+* `MastodonBridge`: [Fetches statuses from a Mastodon (ActivityPub) instance](https://rss-bridge.org/bridge01/#bridge-MastodonBridge)
+* `RedditBridge`: [Fetches posts from a user/subredit (with filtering options)](https://rss-bridge.org/bridge01/#bridge-RedditBridge)
+* `RumbleBridge`: [Fetches channel/user videos](https://rss-bridge.org/bridge01/#bridge-RumbleBridge)
+* `SoundcloudBridge`: [Fetches music by username](https://rss-bridge.org/bridge01/#bridge-SoundcloudBridge)
+* `TelegramBridge`: [Fetches posts from a public channel](https://rss-bridge.org/bridge01/#bridge-TelegramBridge)
+* `ThePirateBayBridge:` [Fetches torrents by search/user/category](https://rss-bridge.org/bridge01/#bridge-ThePirateBayBridge)
+* `TikTokBridge`: [Fetches posts by username](https://rss-bridge.org/bridge01/#bridge-TikTokBridge)
+* `TwitchBridge`: [Fetches videos from channel](https://rss-bridge.org/bridge01/#bridge-TwitchBridge)
+* `XPathBridge`: [Scrape out a feed using XPath expressions](https://rss-bridge.org/bridge01/#bridge-XPathBridge)
+* `YoutubeBridge`: [Fetches videos by username/channel/playlist/search](https://rss-bridge.org/bridge01/#bridge-YoutubeBridge)
+* `YouTubeCommunityTabBridge`: [Fetches posts from a channel's community tab](https://rss-bridge.org/bridge01/#bridge-YouTubeCommunityTabBridge)
 
-***
+## Tutorial
 
-RSS-Bridge hashtag (#rss-bridge) search on Twitter, in Atom format (as displayed by Firefox):
+### How to install on traditional shared web hosting
 
-![Screenshot](https://github.com/RSS-Bridge/rss-bridge/wiki/images/screenshot_twitterbridge_atom.png)
+RSS-Bridge can basically be unzipped into a web folder. Should be working instantly.
 
-Requirements
-===
+Latest zip:
+https://github.com/RSS-Bridge/rss-bridge/archive/refs/heads/master.zip (2MB)
 
-RSS-Bridge requires PHP 5.6 or higher with following extensions enabled:
+### How to install on Debian 12 (nginx + php-fpm)
 
-  - [`openssl`](https://secure.php.net/manual/en/book.openssl.php)
-  - [`libxml`](https://secure.php.net/manual/en/book.libxml.php)
-  - [`mbstring`](https://secure.php.net/manual/en/book.mbstring.php)
-  - [`simplexml`](https://secure.php.net/manual/en/book.simplexml.php)
-  - [`curl`](https://secure.php.net/manual/en/book.curl.php)
-  - [`json`](https://secure.php.net/manual/en/book.json.php)
-  - [`filter`](https://secure.php.net/manual/en/book.filter.php)
-  - [`sqlite3`](http://php.net/manual/en/book.sqlite3.php) (only when using SQLiteCache)
+These instructions have been tested on a fresh Debian 12 VM from Digital Ocean (1vcpu-512mb-10gb, 5 USD/month).
 
-Find more information on our [Wiki](https://github.com/rss-bridge/rss-bridge/wiki)
+```shell
+timedatectl set-timezone Europe/Oslo
 
-Enable / Disable bridges
-===
+apt install git nginx php8.2-fpm php-mbstring php-simplexml php-curl php-intl
 
-RSS-Bridge allows you to take full control over which bridges are displayed to the user. That way you can host your own RSS-Bridge service with your favorite collection of bridges!
+# Create a user account
+useradd --shell /bin/bash --create-home rss-bridge
 
-Find more information on the [Wiki](https://github.com/RSS-Bridge/rss-bridge/wiki/Whitelisting)
+cd /var/www
 
-**Notice**: By default, RSS-Bridge will only show a small subset of bridges. Make sure to read up on [whitelisting](https://github.com/RSS-Bridge/rss-bridge/wiki/Whitelisting) to unlock the full potential of RSS-Bridge!
+# Create folder and change its ownership to rss-bridge
+mkdir rss-bridge && chown rss-bridge:rss-bridge rss-bridge/
 
-Deploy
-===
+# Become rss-bridge
+su rss-bridge
 
-Thanks to the community, hosting your own instance of RSS-Bridge is as easy as clicking a button!
+# Clone master branch into existing folder
+git clone https://github.com/RSS-Bridge/rss-bridge.git rss-bridge/
+cd rss-bridge
+
+# Copy over the default config (OPTIONAL)
+cp -v config.default.ini.php config.ini.php
+
+# Recursively give full permissions to user/owner
+chmod 700 --recursive ./
+
+# Give read and execute to others on folder ./static
+chmod o+rx ./ ./static
+
+# Recursively give give read to others on folder ./static
+chmod o+r --recursive ./static
+```
+
+Nginx config:
+
+```nginx
+# /etc/nginx/sites-enabled/rss-bridge.conf
+
+server {
+    listen 80;
+
+    # TODO: change to your own server name
+    server_name example.com;
+
+    access_log /var/log/nginx/rss-bridge.access.log;
+    error_log /var/log/nginx/rss-bridge.error.log;
+    log_not_found off;
+
+    # Intentionally not setting a root folder
+
+    # Static content only served here
+    location /static/ {
+        alias /var/www/rss-bridge/static/;
+    }
+
+    # Pass off to php-fpm only when location is EXACTLY == /
+    location = / {
+        root /var/www/rss-bridge/;
+        include snippets/fastcgi-php.conf;
+        fastcgi_read_timeout 45s;
+        fastcgi_pass unix:/run/php/rss-bridge.sock;
+    }
+
+    # Reduce log noise
+    location = /favicon.ico {
+        access_log off;
+    }
+
+    # Reduce log noise
+    location = /robots.txt {
+        access_log off;
+    }
+}
+```
+
+PHP FPM pool config:
+```ini
+; /etc/php/8.2/fpm/pool.d/rss-bridge.conf
+
+[rss-bridge]
+
+user = rss-bridge
+group = rss-bridge
+
+listen = /run/php/rss-bridge.sock
+
+listen.owner = www-data
+listen.group = www-data
+
+; Create 10 workers standing by to serve requests
+pm = static
+pm.max_children = 10
+
+; Respawn worker after 500 requests (workaround for memory leaks etc.)
+pm.max_requests = 500
+```
+
+PHP ini config:
+```ini
+; /etc/php/8.2/fpm/conf.d/30-rss-bridge.ini
+
+max_execution_time = 15
+memory_limit = 64M
+```
+
+Restart fpm and nginx:
+
+```shell
+# Lint and restart php-fpm
+php-fpm8.2 -t && systemctl restart php8.2-fpm
+
+# Lint and restart nginx
+nginx -t && systemctl restart nginx
+```
+
+### How to install from Composer
+
+Install the latest release.
+
+```shell
+cd /var/www
+composer create-project -v --no-dev --no-scripts rss-bridge/rss-bridge
+```
+
+### How to install with Caddy
+
+TODO. See https://github.com/RSS-Bridge/rss-bridge/issues/3785
+
+### Install from Docker Hub:
+
+Install by downloading the docker image from Docker Hub:
+
+```bash
+# Create container
+docker create --name=rss-bridge --publish 3000:80 --volume $(pwd)/config:/config rssbridge/rss-bridge
+```
+
+You can put custom `config.ini.php` and bridges into `./config`.
+
+**You must restart container for custom changes to take effect.**
+
+See `docker-entrypoint.sh` for details.
+
+```bash
+# Start container
+docker start rss-bridge
+```
+
+Browse http://localhost:3000/
+
+### Install by locally building from Dockerfile
+
+```bash
+# Build image from Dockerfile
+docker build -t rss-bridge .
+
+# Create container
+docker create --name rss-bridge --publish 3000:80 --volume $(pwd)/config:/config rss-bridge
+```
+
+You can put custom `config.ini.php` and bridges into `./config`.
+
+**You must restart container for custom changes to take effect.**
+
+See `docker-entrypoint.sh` for details.
+
+```bash
+# Start container
+docker start rss-bridge
+```
+
+Browse http://localhost:3000/
+
+### Install with docker-compose (using Docker Hub)
+
+You can put custom `config.ini.php` and bridges into `./config`.
+
+**You must restart container for custom changes to take effect.**
+
+See `docker-entrypoint.sh` for details.
+
+```bash
+docker-compose up
+```
+
+Browse http://localhost:3000/
+
+### Other installation methods
 
 [![Deploy on Scalingo](https://cdn.scalingo.com/deploy/button.svg)](https://my.scalingo.com/deploy?source=https://github.com/sebsauvage/rss-bridge)
 [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+[![Deploy to Cloudron](https://cloudron.io/img/button.svg)](https://www.cloudron.io/store/com.rssbridgeapp.cloudronapp.html)
+[![Run on PikaPods](https://www.pikapods.com/static/run-button.svg)](https://www.pikapods.com/pods?run=rssbridge)
 
-Getting involved
-===
+The Heroku quick deploy currently does not work. It might work if you fork this repo and
+modify the `repository` in `scalingo.json`. See https://github.com/RSS-Bridge/rss-bridge/issues/2688
 
-There are many ways for you to getting involved with RSS-Bridge. Here are a few things:
+Learn more in
+[Installation](https://rss-bridge.github.io/rss-bridge/For_Hosts/Installation.html).
 
-- Share RSS-Bridge with your friends (Twitter, Facebook, ..._you name it_...)
-- Report broken bridges or bugs by opening [Issues](https://github.com/RSS-Bridge/rss-bridge/issues) on GitHub
-- Request new features or suggest ideas (via [Issues](https://github.com/RSS-Bridge/rss-bridge/issues))
-- Discuss bugs, features, ideas or [issues](https://github.com/RSS-Bridge/rss-bridge/issues)
-- Add new bridges or improve the API
-- Improve the [Wiki](https://github.com/RSS-Bridge/rss-bridge/wiki)
-- Host an instance of RSS-Bridge for your personal use or make it available to the community :sparkling_heart:
+## How-to
 
-Authors
-===
+### How to fix "Access denied."
 
-We are RSS-Bridge community, a group of developers continuing the project initiated by sebsauvage, webmaster of [sebsauvage.net](http://sebsauvage.net), author of [Shaarli](http://sebsauvage.net/wiki/doku.php?id=php:shaarli) and [ZeroBin](http://sebsauvage.net/wiki/doku.php?id=php:zerobin).
+Output is from php-fpm. It is unable to read index.php.
 
-**Contributors** (sorted alphabetically):
-<!--
-Use this script to generate the list automatically (using the GitHub API):
-https://gist.github.com/LogMANOriginal/da00cd1e5f0ca31cef8e193509b17fd8
--->
+    chown rss-bridge:rss-bridge /var/www/rss-bridge/index.php
 
-* [16mhz](https://github.com/16mhz)
-* [adamchainz](https://github.com/adamchainz)
-* [Ahiles3005](https://github.com/Ahiles3005)
-* [akirk](https://github.com/akirk)
-* [Albirew](https://github.com/Albirew)
-* [aledeg](https://github.com/aledeg)
-* [alex73](https://github.com/alex73)
-* [alexAubin](https://github.com/alexAubin)
-* [AmauryCarrade](https://github.com/AmauryCarrade)
-* [AntoineTurmel](https://github.com/AntoineTurmel)
-* [arnd-s](https://github.com/arnd-s)
-* [ArthurHoaro](https://github.com/ArthurHoaro)
-* [Astalaseven](https://github.com/Astalaseven)
-* [Astyan-42](https://github.com/Astyan-42)
-* [AxorPL](https://github.com/AxorPL)
-* [ayacoo](https://github.com/ayacoo)
-* [az5he6ch](https://github.com/az5he6ch)
-* [b1nj](https://github.com/b1nj)
-* [benasse](https://github.com/benasse)
-* [Binnette](https://github.com/Binnette)
-* [Bockiii](https://github.com/Bockiii)
-* [captn3m0](https://github.com/captn3m0)
-* [chemel](https://github.com/chemel)
-* [Chouchen](https://github.com/Chouchen)
-* [ckiw](https://github.com/ckiw)
-* [cn-tools](https://github.com/cn-tools)
-* [cnlpete](https://github.com/cnlpete)
-* [corenting](https://github.com/corenting)
-* [couraudt](https://github.com/couraudt)
-* [csisoap](https://github.com/csisoap)
-* [cyberjacob](https://github.com/cyberjacob)
-* [da2x](https://github.com/da2x)
-* [Daiyousei](https://github.com/Daiyousei)
-* [dawidsowa](https://github.com/dawidsowa)
-* [DevonHess](https://github.com/DevonHess)
-* [disk0x](https://github.com/disk0x)
-* [DJCrashdummy](https://github.com/DJCrashdummy)
-* [Djuuu](https://github.com/Djuuu)
-* [DnAp](https://github.com/DnAp)
-* [dominik-th](https://github.com/dominik-th)
-* [Draeli](https://github.com/Draeli)
-* [Dreckiger-Dan](https://github.com/Dreckiger-Dan)
-* [drego85](https://github.com/drego85)
-* [drklee3](https://github.com/drklee3)
-* [em92](https://github.com/em92)
-* [eMerzh](https://github.com/eMerzh)
-* [EtienneM](https://github.com/EtienneM)
-* [fanch317](https://github.com/fanch317)
-* [fivefilters](https://github.com/fivefilters)
-* [floviolleau](https://github.com/floviolleau)
-* [fluffy-critter](https://github.com/fluffy-critter)
-* [Frenzie](https://github.com/Frenzie)
-* [fulmeek](https://github.com/fulmeek)
-* [ggiessen](https://github.com/ggiessen)
-* [Ginko-Aloe](https://github.com/Ginko-Aloe)
-* [Glandos](https://github.com/Glandos)
-* [gloony](https://github.com/gloony)
-* [GregThib](https://github.com/GregThib)
-* [griffaurel](https://github.com/griffaurel)
-* [Grummfy](https://github.com/Grummfy)
-* [gsantner](https://github.com/gsantner)
-* [guigot](https://github.com/guigot)
-* [hollowleviathan](https://github.com/hollowleviathan)
-* [hpacleb](https://github.com/hpacleb)
-* [hunhejj](https://github.com/hunhejj)
-* [husim0](https://github.com/husim0)
-* [IceWreck](https://github.com/IceWreck)
-* [j0k3r](https://github.com/j0k3r)
-* [JackNUMBER](https://github.com/JackNUMBER)
-* [jacquesh](https://github.com/jacquesh)
-* [JasonGhent](https://github.com/JasonGhent)
-* [jcgoette](https://github.com/jcgoette)
-* [jdesgats](https://github.com/jdesgats)
-* [jdigilio](https://github.com/jdigilio)
-* [JeremyRand](https://github.com/JeremyRand)
-* [JimDog546](https://github.com/JimDog546)
-* [Jocker666z](https://github.com/Jocker666z)
-* [johnnygroovy](https://github.com/johnnygroovy)
-* [johnpc](https://github.com/johnpc)
-* [joni1993](https://github.com/joni1993)
-* [joshcoales](https://github.com/joshcoales)
-* [klimplant](https://github.com/klimplant)
-* [kolarcz](https://github.com/kolarcz)
-* [kranack](https://github.com/kranack)
-* [kraoc](https://github.com/kraoc)
-* [l1n](https://github.com/l1n)
-* [laBecasse](https://github.com/laBecasse)
-* [lagaisse](https://github.com/lagaisse)
-* [lalannev](https://github.com/lalannev)
-* [ldidry](https://github.com/ldidry)
-* [Leomaradan](https://github.com/Leomaradan)
-* [liamka](https://github.com/liamka)
-* [Limero](https://github.com/Limero)
-* [LogMANOriginal](https://github.com/LogMANOriginal)
-* [lorenzos](https://github.com/lorenzos)
-* [lukasklinger](https://github.com/lukasklinger)
-* [m0zes](https://github.com/m0zes)
-* [matthewseal](https://github.com/matthewseal)
-* [mcbyte-it](https://github.com/mcbyte-it)
-* [mdemoss](https://github.com/mdemoss)
-* [melangue](https://github.com/melangue)
-* [metaMMA](https://github.com/metaMMA)
-* [mibe](https://github.com/mibe)
-* [mightymt](https://github.com/mightymt)
-* [mitsukarenai](https://github.com/mitsukarenai)
-* [Monocularity](https://github.com/Monocularity)
-* [MonsieurPoutounours](https://github.com/MonsieurPoutounours)
-* [mr-flibble](https://github.com/mr-flibble)
-* [mro](https://github.com/mro)
-* [mschwld](https://github.com/mschwld)
-* [mxmehl](https://github.com/mxmehl)
-* [nel50n](https://github.com/nel50n)
-* [niawag](https://github.com/niawag)
-* [Niehztog](https://github.com/Niehztog)
-* [Nono-m0le](https://github.com/Nono-m0le)
-* [ObsidianWitch](https://github.com/ObsidianWitch)
-* [OliverParoczai](https://github.com/OliverParoczai)
-* [Ololbu](https://github.com/Ololbu)
-* [ORelio](https://github.com/ORelio)
-* [otakuf](https://github.com/otakuf)
-* [Park0](https://github.com/Park0)
-* [Paroleen](https://github.com/Paroleen)
-* [PaulVayssiere](https://github.com/PaulVayssiere)
-* [pellaeon](https://github.com/pellaeon)
-* [PeterDaveHello](https://github.com/PeterDaveHello)
-* [Peterr-K](https://github.com/Peterr-K)
-* [Piranhaplant](https://github.com/Piranhaplant)
-* [pit-fgfjiudghdf](https://github.com/pit-fgfjiudghdf)
-* [pitchoule](https://github.com/pitchoule)
-* [pmaziere](https://github.com/pmaziere)
-* [Pofilo](https://github.com/Pofilo)
-* [prysme01](https://github.com/prysme01)
-* [Qluxzz](https://github.com/Qluxzz)
-* [quentinus95](https://github.com/quentinus95)
-* [rakoo](https://github.com/rakoo)
-* [RawkBob](https://github.com/RawkBob)
-* [regisenguehard](https://github.com/regisenguehard)
-* [Riduidel](https://github.com/Riduidel)
-* [rogerdc](https://github.com/rogerdc)
-* [Roliga](https://github.com/Roliga)
-* [ronansalmon](https://github.com/ronansalmon)
-* [rremizov](https://github.com/rremizov)
-* [sebsauvage](https://github.com/sebsauvage)
-* [shutosg](https://github.com/shutosg)
-* [simon816](https://github.com/simon816)
-* [Simounet](https://github.com/Simounet)
-* [somini](https://github.com/somini)
-* [squeek502](https://github.com/squeek502)
-* [stjohnjohnson](https://github.com/stjohnjohnson)
-* [Strubbl](https://github.com/Strubbl)
-* [sublimz](https://github.com/sublimz)
-* [sunchaserinfo](https://github.com/sunchaserinfo)
-* [SuperSandro2000](https://github.com/SuperSandro2000)
-* [sysadminstory](https://github.com/sysadminstory)
-* [t0stiman](https://github.com/t0stiman)
-* [tameroski](https://github.com/tameroski)
-* [teromene](https://github.com/teromene)
-* [tgkenney](https://github.com/tgkenney)
-* [thefranke](https://github.com/thefranke)
-* [ThePadawan](https://github.com/ThePadawan)
-* [TheRadialActive](https://github.com/TheRadialActive)
-* [theScrabi](https://github.com/theScrabi)
-* [thezeroalpha](https://github.com/thezeroalpha)
-* [TitiTestScalingo](https://github.com/TitiTestScalingo)
-* [triatic](https://github.com/triatic)
-* [VerifiedJoseph](https://github.com/VerifiedJoseph)
-* [WalterBarrett](https://github.com/WalterBarrett)
-* [wtuuju](https://github.com/wtuuju)
-* [xurxof](https://github.com/xurxof)
-* [yamanq](https://github.com/yamanq)
-* [yardenac](https://github.com/yardenac)
-* [ymeister](https://github.com/ymeister)
-* [ZeNairolf](https://github.com/ZeNairolf)
+### How to password-protect the instance (token)
 
-Licenses
-===
+Modify `config.ini.php`:
+
+    [authentication]
+
+    token = "hunter2"
+
+### How to remove all cache items
+
+As current user:
+
+    bin/cache-clear
+
+As user rss-bridge:
+
+    sudo -u rss-bridge bin/cache-clear
+
+As root:
+
+    sudo bin/cache-clear
+
+### How to remove all expired cache items
+
+    bin/cache-prune
+
+### How to fix "PHP Fatal error:  Uncaught Exception: The FileCache path is not writable"
+
+```shell
+# Give rss-bridge ownership
+chown rss-bridge:rss-bridge -R /var/www/rss-bridge/cache
+
+# Or, give www-data ownership
+chown www-data:www-data -R /var/www/rss-bridge/cache
+
+# Or, give everyone write permission
+chmod 777 -R /var/www/rss-bridge/cache
+
+# Or last ditch effort (CAREFUL)
+rm -rf /var/www/rss-bridge/cache/ && mkdir /var/www/rss-bridge/cache/
+```
+
+### How to fix "attempt to write a readonly database"
+
+The sqlite files (db, wal and shm) are not writeable.
+
+    chown -v rss-bridge:rss-bridge cache/*
+
+### How to fix "Unable to prepare statement: 1, no such table: storage"
+
+    rm cache/*
+
+### How to create a new bridge from scratch
+
+Create the new bridge in e.g. `bridges/BearBlogBridge.php`:
+
+```php
+<?php
+
+class BearBlogBridge extends BridgeAbstract
+{
+    const NAME = 'BearBlog (bearblog.dev)';
+
+    public function collectData()
+    {
+        $dom = getSimpleHTMLDOM('https://herman.bearblog.dev/blog/');
+        foreach ($dom->find('.blog-posts li') as $li) {
+            $a = $li->find('a', 0);
+            $this->items[] = [
+                'title' => $a->plaintext,
+                'uri' => 'https://herman.bearblog.dev' . $a->href,
+            ];
+        }
+    }
+}
+```
+
+Learn more in [bridge api](https://rss-bridge.github.io/rss-bridge/Bridge_API/index.html).
+
+### How to enable all bridges
+
+    enabled_bridges[] = *
+
+### How to enable some bridges
+
+```
+enabled_bridges[] = TwitchBridge
+enabled_bridges[] = GettrBridge
+```
+
+### How to enable debug mode
+
+The 
+[debug mode](https://rss-bridge.github.io/rss-bridge/For_Developers/Debug_mode.html)
+disables the majority of caching operations.
+
+    enable_debug_mode = true
+
+### How to switch to memcached as cache backend
+
+```
+[cache]
+
+; Cache backend: file (default), sqlite, memcached, null
+type = "memcached"
+```
+
+### How to switch to sqlite3 as cache backend
+
+    type = "sqlite"
+
+### How to disable bridge errors (as feed items)
+
+When a bridge fails, RSS-Bridge will produce a feed with a single item describing the error.
+
+This way, feed readers pick it up and you are notified.
+
+If you don't want this behaviour, switch the error output to `http`:
+
+    [error]
+
+    ; Defines how error messages are returned by RSS-Bridge
+    ;
+    ; "feed" = As part of the feed (default)
+    ; "http" = As HTTP error message
+    ; "none" = No errors are reported
+    output = "http"
+
+### How to accumulate errors before finally reporting it
+
+Modify `report_limit` so that an error must occur 3 times before it is reported.
+
+    ; Defines how often an error must occur before it is reported to the user
+    report_limit = 3
+
+The report count is reset to 0 each day.
+
+### How to password-protect the instance (HTTP Basic Auth)
+
+    [authentication]
+
+    enable = true
+    username = "alice"
+    password = "cat"
+
+Will typically require feed readers to be configured with the credentials.
+
+It may also be possible to manually include the credentials in the URL:
+
+https://alice:cat@rss-bridge.org/bridge01/?action=display&bridge=FabriceBellardBridge&format=Html
+
+### How to create a new output format
+
+See `formats/PlaintextFormat.php` for an example.
+
+### How to run unit tests and linter
+
+These commands require that you have installed the dev dependencies in `composer.json`.
+
+Run all tests:
+
+    ./vendor/bin/phpunit
+
+Run a single test class:
+
+    ./vendor/bin/phpunit --filter UrlTest
+
+Run linter:
+
+    ./vendor/bin/phpcs --standard=phpcs.xml --warning-severity=0 --extensions=php -p ./
+
+https://github.com/squizlabs/PHP_CodeSniffer/wiki
+
+### How to spawn a minimal development environment
+
+    php -S 127.0.0.1:9001
+
+http://127.0.0.1:9001/
+
+## Explanation
+
+We are RSS-Bridge community, a group of developers continuing the project initiated by sebsauvage,
+webmaster of
+[sebsauvage.net](https://sebsauvage.net), author of
+[Shaarli](https://sebsauvage.net/wiki/doku.php?id=php:shaarli) and
+[ZeroBin](https://sebsauvage.net/wiki/doku.php?id=php:zerobin).
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md)
+
+RSS-Bridge uses caching to prevent services from banning your server for repeatedly updating feeds.
+The specific cache duration can be different between bridges.
+
+RSS-Bridge allows you to take full control over which bridges are displayed to the user.
+That way you can host your own RSS-Bridge service with your favorite collection of bridges!
+
+Current maintainers (as of 2024): @dvikan and @Mynacol #2519
+
+## Reference
+
+### Feed item structure
+
+This is the feed item structure that bridges are expected to produce.
+
+```php
+    $item = [
+        'uri' => 'https://example.com/blog/hello',
+        'title' => 'Hello world',
+        // Publication date in unix timestamp
+        'timestamp' => 1668706254,
+        'author' => 'Alice',
+        'content' => 'Here be item content',
+        'enclosures' => [
+            'https://example.com/foo.png',
+            'https://example.com/bar.png'
+        ],
+        'categories' => [
+            'news',
+            'tech',
+        ],
+        // Globally unique id
+        'uid' => 'e7147580c8747aad',
+    ]
+```
+
+### Output formats
+
+* `Atom`: Atom feed, for use in feed readers
+* `Html`: Simple HTML page
+* `Json`: JSON, for consumption by other applications
+* `Mrss`: MRSS feed, for use in feed readers
+* `Plaintext`: Raw text, for consumption by other applications
+* `Sfeed`: Text, TAB separated
+
+### Cache backends
+
+* `File`
+* `SQLite`
+* `Memcached`
+* `Array`
+* `Null`
+
+### Licenses
 
 The source code for RSS-Bridge is [Public Domain](UNLICENSE).
 
 RSS-Bridge uses third party libraries with their own license:
 
-  * [`Parsedown`](https://github.com/erusev/parsedown) licensed under the [MIT License](http://opensource.org/licenses/MIT)
-  * [`PHP Simple HTML DOM Parser`](http://simplehtmldom.sourceforge.net/) licensed under the [MIT License](http://opensource.org/licenses/MIT)
-  * [`php-urljoin`](https://github.com/fluffy-critter/php-urljoin) licensed under the [MIT License](http://opensource.org/licenses/MIT)
+  * [`Parsedown`](https://github.com/erusev/parsedown) licensed under the [MIT License](https://opensource.org/licenses/MIT)
+  * [`PHP Simple HTML DOM Parser`](https://simplehtmldom.sourceforge.io/docs/1.9/index.html) licensed under the [MIT License](https://opensource.org/licenses/MIT)
+  * [`php-urljoin`](https://github.com/fluffy-critter/php-urljoin) licensed under the [MIT License](https://opensource.org/licenses/MIT)
+  * [`Laravel framework`](https://github.com/laravel/framework/) licensed under the [MIT License](https://opensource.org/licenses/MIT)
 
-Technical notes
-===
-
-  * RSS-Bridge uses caching to prevent services from banning your server for repeatedly updating feeds. The specific cache duration can be different between bridges. Cached files are deleted automatically after 24 hours.
-  * You can implement your own bridge, [following these instructions](https://github.com/RSS-Bridge/rss-bridge/wiki/Bridge-API).
-  * You can enable debug mode to disable caching. Find more information on the [Wiki](https://github.com/RSS-Bridge/rss-bridge/wiki/Debug-mode)
-
-Rant
-===
+## Rant
 
 *Dear so-called "social" websites.*
 

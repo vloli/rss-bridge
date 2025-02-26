@@ -1,65 +1,77 @@
 <?php
-class ComicsKingdomBridge extends BridgeAbstract {
 
-	const MAINTAINER = 'stjohnjohnson';
-	const NAME = 'Comics Kingdom Unofficial RSS';
-	const URI = 'https://www.comicskingdom.com/';
-	const CACHE_TIMEOUT = 21600; // 6h
-	const DESCRIPTION = 'Comics Kingdom Unofficial RSS';
-	const PARAMETERS = array( array(
-		'comicname' => array(
-			'name' => 'comicname',
-			'type' => 'text',
-			'required' => true
-		)
-	));
+class ComicsKingdomBridge extends BridgeAbstract
+{
+    const MAINTAINER = 'TReKiE';
+    // const MAINTAINER = 'stjohnjohnson';
+    const NAME = 'Comics Kingdom Unofficial RSS';
+    const URI = 'https://wp.comicskingdom.com/wp-json/wp/v2/ck_comic';
+    const CACHE_TIMEOUT = 21600; // 6h
+    const DESCRIPTION = 'Comics Kingdom Unofficial RSS';
+    const PARAMETERS = [ [
+        'comicname' => [
+            'name' => 'Name of comic',
+            'type' => 'text',
+            'exampleValue' => 'mutts',
+            'title' => 'The name of the comic in the URL after https://comicskingdom.com/',
+            'required' => true
+        ],
+        'limit' => [
+            'name' => 'Limit',
+            'type' => 'number',
+            'title' => 'The number of recent comics to get',
+            'defaultValue' => 10
+        ]
+    ]];
 
-	public function collectData(){
-		$html = getSimpleHTMLDOM($this->getURI(), array(), array(), true, false)
-			or returnServerError('Could not request Comics Kingdom: ' . $this->getURI());
+    protected $comicName;
 
-		// Get author from first page
-		$author = $html->find('div.author p', 0)->plaintext
-			or returnServerError('Comics Kingdom comic does not exist: ' . $this->getURI());;
+    public function collectData()
+    {
+        $json = getContents($this->getURI());
+        $data = json_decode($json, false);
 
-		// Get current date/link
-		$link = $html->find('meta[property=og:url]', 0)->content;
-		for($i = 0; $i < 5; $i++) {
-			$item = array();
+        if (isset($data[0]->_embedded->{'wp:term'}[0][0])) {
+            $this->comicName = $data[0]->_embedded->{'wp:term'}[0][0]->name;
+        }
 
-			$page = getSimpleHTMLDOM($link)
-				or returnServerError('Could not request Comics Kingdom: ' . $link);
+        foreach ($data as $comicitem) {
+            $item = [];
 
-			$imagelink = $page->find('meta[property=og:image]', 0)->content;
-			$prevSlug = $page->find('slider-arrow[:is-left-arrow=true]', 0);
-			$link = $this->getURI() . '/' . $prevSlug->getAttribute('date-slug');
+            $item['id'] = $comicitem->id;
+            $item['uri'] = $comicitem->yoast_head_json->og_url;
+            $item['author'] = str_ireplace('By ', '', $comicitem->ck_comic_byline);
+            $item['title'] = $comicitem->yoast_head_json->title;
+            $item['timestamp'] = $comicitem->date;
+            $item['content'] = '<img src="' . $comicitem->yoast_head_json->og_image[0]->url . '" />';
+            $this->items[] = $item;
+        }
+    }
 
-			$date = explode('/', $link);
+    public function getURI()
+    {
+        if (!is_null($this->getInput('comicname'))) {
+            $params = [
+                'ck_feature'        => $this->getInput('comicname'),
+                'per_page'          => $this->getInput('limit'),
+                'date_inclusive'    => 'true',
+                'order'             => 'desc',
+                'page'              => '1',
+                '_embed'            => 'true'
+            ];
 
-			$item['id'] = $imagelink;
-			$item['uri'] = $link;
-			$item['author'] = $author;
-			$item['title'] = 'Comics Kingdom ' . $this->getInput('comicname');
-			$item['timestamp'] = DateTime::createFromFormat('Y-m-d', $date[count($date) - 1])->getTimestamp();
-			$item['content'] = '<img src="' . $imagelink . '" />';
+            return self::URI . '?' . http_build_query($params);
+        }
 
-			$this->items[] = $item;
-		}
-	}
+        return parent::getURI();
+    }
 
-	public function getURI(){
-		if(!is_null($this->getInput('comicname'))) {
-			return self::URI . urlencode($this->getInput('comicname'));
-		}
+    public function getName()
+    {
+        if ($this->comicName) {
+            return $this->comicName . ' - Comics Kingdom';
+        }
 
-		return parent::getURI();
-	}
-
-	public function getName(){
-		if(!is_null($this->getInput('comicname'))) {
-			return $this->getInput('comicname') . ' - Comics Kingdom';
-		}
-
-		return parent::getName();
-	}
+        return parent::getName();
+    }
 }

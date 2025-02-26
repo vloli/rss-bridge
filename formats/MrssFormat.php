@@ -1,4 +1,5 @@
 <?php
+
 /**
  * MrssFormat - RSS 2.0 + Media RSS
  * http://www.rssboard.org/rss-specification
@@ -24,141 +25,173 @@
  * - Since the Media RSS extension has its own namespace, the output is a valid
  *   RSS 2.0 feed that works with feed readers that don't support the extension.
  */
-class MrssFormat extends FormatAbstract {
-	const MIME_TYPE = 'application/rss+xml';
+class MrssFormat extends FormatAbstract
+{
+    const MIME_TYPE = 'application/rss+xml';
 
-	const ALLOWED_IMAGE_EXT = array(
-		'.gif', '.jpg', '.png'
-	);
+    protected const ATOM_NS = 'http://www.w3.org/2005/Atom';
+    protected const MRSS_NS = 'http://search.yahoo.com/mrss/';
 
-	public function stringify(){
-		$urlPrefix = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://';
-		$urlHost = (isset($_SERVER['HTTP_HOST'])) ? $_SERVER['HTTP_HOST'] : '';
-		$urlPath = (isset($_SERVER['PATH_INFO'])) ? $_SERVER['PATH_INFO'] : '';
-		$urlRequest = (isset($_SERVER['REQUEST_URI'])) ? $_SERVER['REQUEST_URI'] : '';
+    public function render(): string
+    {
+        $document = new \DomDocument('1.0', 'UTF-8');
+        $document->formatOutput = true;
 
-		$feedUrl = $this->xml_encode($urlPrefix . $urlHost . $urlRequest);
+        $feed = $document->createElement('rss');
+        $document->appendChild($feed);
+        $feed->setAttribute('version', '2.0');
+        $feed->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:atom', self::ATOM_NS);
+        $feed->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:media', self::MRSS_NS);
 
-		$extraInfos = $this->getExtraInfos();
-		$title = $this->xml_encode($extraInfos['name']);
-		$icon = $extraInfos['icon'];
+        $channel = $document->createElement('channel');
+        $feed->appendChild($channel);
 
-		if(!empty($extraInfos['uri'])) {
-			$uri = $this->xml_encode($extraInfos['uri']);
-		} else {
-			$uri = REPOSITORY;
-		}
+        $feedArray = $this->getFeed();
+        $uri = $feedArray['uri'];
+        $title = $feedArray['name'];
 
-		$items = '';
-		foreach($this->getItems() as $item) {
-			$itemTimestamp = $item->getTimestamp();
-			$itemTitle = $this->xml_encode($item->getTitle());
-			$itemUri = $this->xml_encode($item->getURI());
-			$itemContent = $this->xml_encode($this->sanitizeHtml($item->getContent()));
-			$entryID = $item->getUid();
-			$isPermaLink = 'false';
+        foreach ($feedArray as $feedKey => $feedValue) {
+            if (in_array($feedKey, ['atom', 'donationUri'])) {
+                continue;
+            }
+            if ($feedKey === 'name') {
+                $channelTitle = $document->createElement('title');
+                $channel->appendChild($channelTitle);
+                $channelTitle->appendChild($document->createTextNode($title));
 
-			if (empty($entryID) && !empty($itemUri)) { // Fallback to provided URI
-				$entryID = $itemUri;
-				$isPermaLink = 'true';
-			}
+                $description = $document->createElement('description');
+                $channel->appendChild($description);
+                $description->appendChild($document->createTextNode($title));
+            } elseif ($feedKey === 'uri') {
+                $link = $document->createElement('link');
+                $channel->appendChild($link);
+                $link->appendChild($document->createTextNode($uri));
 
-			if (empty($entryID)) // Fallback to title and content
-				$entryID = hash('sha1', $itemTitle . $itemContent);
+                $linkAlternate = $document->createElementNS(self::ATOM_NS, 'link');
+                $channel->appendChild($linkAlternate);
+                $linkAlternate->setAttribute('rel', 'alternate');
+                $linkAlternate->setAttribute('type', 'text/html');
+                $linkAlternate->setAttribute('href', $uri);
 
-			$entryTitle = '';
-			if (!empty($itemTitle))
-				$entryTitle = '<title>' . $itemTitle . '</title>';
+                $linkSelf = $document->createElementNS(self::ATOM_NS, 'link');
+                $channel->appendChild($linkSelf);
+                $linkSelf->setAttribute('rel', 'self');
+                $linkSelf->setAttribute('type', 'application/atom+xml');
+                $feedUrl = get_current_url();
+                $linkSelf->setAttribute('href', $feedUrl);
+            } elseif ($feedKey === 'icon') {
+                $icon = $feedValue;
+                if ($icon) {
+                    $feedImage = $document->createElement('image');
+                    $channel->appendChild($feedImage);
+                    $iconUrl = $document->createElement('url');
+                    $iconUrl->appendChild($document->createTextNode($icon));
+                    $feedImage->appendChild($iconUrl);
+                    $iconTitle = $document->createElement('title');
+                    $iconTitle->appendChild($document->createTextNode($title));
+                    $feedImage->appendChild($iconTitle);
+                    $iconLink = $document->createElement('link');
+                    $iconLink->appendChild($document->createTextNode($uri));
+                    $feedImage->appendChild($iconLink);
+                }
+            } elseif ($feedKey === 'itunes') {
+                $feed->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:itunes', self::ITUNES_NS);
+                foreach ($feedValue as $itunesKey => $itunesValue) {
+                    $itunesProperty = $document->createElementNS(self::ITUNES_NS, $itunesKey);
+                    $channel->appendChild($itunesProperty);
+                    $itunesProperty->appendChild($document->createTextNode($itunesValue));
+                }
+            } else {
+                $element = $document->createElement($feedKey);
+                $channel->appendChild($element);
+                $element->appendChild($document->createTextNode($feedValue));
+            }
+        }
 
-			$entryLink = '';
-			if (!empty($itemUri))
-				$entryLink = '<link>' . $itemUri . '</link>';
+        foreach ($this->getItems() as $item) {
+            $itemArray = $item->toArray();
+            $itemTimestamp = $item->getTimestamp();
+            $itemTitle = $item->getTitle();
+            $itemUri = $item->getURI();
+            $itemContent = $item->getContent() ?? '';
+            $itemUid = $item->getUid();
+            $isPermaLink = 'false';
 
-			$entryPublished = '';
-			if (!empty($itemTimestamp)) {
-				$entryPublished = '<pubDate>'
-				. $this->xml_encode(gmdate(DATE_RFC2822, $itemTimestamp))
-				. '</pubDate>';
-			}
+            if (empty($itemUid) && !empty($itemUri)) {
+                // Fallback to provided URI
+                $itemUid = $itemUri;
+                $isPermaLink = 'true';
+            }
 
-			$entryDescription = '';
-			if (!empty($itemContent))
-				$entryDescription = '<description>' . $itemContent . '</description>';
+            if (empty($itemUid)) {
+                // Fallback to title and content
+                $itemUid = hash('sha1', $itemTitle . $itemContent);
+            }
 
-			$entryEnclosures = '';
-			foreach($item->getEnclosures() as $enclosure) {
-				$entryEnclosures .= '<media:content url="'
-				. $this->xml_encode($enclosure)
-				. '" type="' . getMimeType($enclosure) . '"/>'
-				. PHP_EOL;
-			}
+            $entry = $document->createElement('item');
+            $channel->appendChild($entry);
 
-			$entryCategories = '';
-			foreach($item->getCategories() as $category) {
-				$entryCategories .= '<category>'
-				. $category . '</category>'
-				. PHP_EOL;
-			}
+            if (!empty($itemTitle)) {
+                $entryTitle = $document->createElement('title');
+                $entry->appendChild($entryTitle);
+                $entryTitle->appendChild($document->createTextNode($itemTitle));
+            }
 
-			$items .= <<<EOD
+            if (isset($itemArray['itunes'])) {
+                $feed->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:itunes', self::ITUNES_NS);
+                foreach ($itemArray['itunes'] as $itunesKey => $itunesValue) {
+                    $itunesProperty = $document->createElementNS(self::ITUNES_NS, $itunesKey);
+                    $entry->appendChild($itunesProperty);
+                    $itunesProperty->appendChild($document->createTextNode($itunesValue));
+                }
 
-	<item>
-		{$entryTitle}
-		{$entryLink}
-		<guid isPermaLink="{$isPermaLink}">{$entryID}</guid>
-		{$entryPublished}
-		{$entryDescription}
-		{$entryEnclosures}
-		{$entryCategories}
-	</item>
+                if (isset($itemArray['enclosure'])) {
+                    $itunesEnclosure = $document->createElement('enclosure');
+                    $entry->appendChild($itunesEnclosure);
+                    $itunesEnclosure->setAttribute('url', $itemArray['enclosure']['url']);
+                    $itunesEnclosure->setAttribute('length', $itemArray['enclosure']['length']);
+                    $itunesEnclosure->setAttribute('type', $itemArray['enclosure']['type']);
+                }
+            }
 
-EOD;
-		}
+            if (!empty($itemUri)) {
+                $entryLink = $document->createElement('link');
+                $entry->appendChild($entryLink);
+                $entryLink->appendChild($document->createTextNode($itemUri));
+            }
 
-		$charset = $this->getCharset();
+            $entryGuid = $document->createElement('guid');
+            $entryGuid->setAttribute('isPermaLink', $isPermaLink);
+            $entry->appendChild($entryGuid);
+            $entryGuid->appendChild($document->createTextNode($itemUid));
 
-		$feedImage = '';
-		if (!empty($icon) && in_array(substr($icon, -4), self::ALLOWED_IMAGE_EXT)) {
-			$feedImage .= <<<EOD
-		<image>
-			<url>{$icon}</url>
-			<title>{$title}</title>
-			<link>{$uri}</link>
-		</image>
-EOD;
-		}
+            if (!empty($itemTimestamp)) {
+                $entryPublished = $document->createElement('pubDate');
+                $entry->appendChild($entryPublished);
+                $entryPublished->appendChild($document->createTextNode(gmdate(\DATE_RFC2822, $itemTimestamp)));
+            }
 
-		/* Data are prepared, now let's begin the "MAGIE !!!" */
-		$toReturn = <<<EOD
-<?xml version="1.0" encoding="{$charset}"?>
-<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">
-	<channel>
-		<title>{$title}</title>
-		<link>{$uri}</link>
-		<description>{$title}</description>
-		{$feedImage}
-		<atom:link rel="alternate" type="text/html" href="{$uri}"/>
-		<atom:link rel="self" href="{$feedUrl}" type="application/atom+xml"/>
-		{$items}
-	</channel>
-</rss>
-EOD;
+            if (!empty($itemContent)) {
+                $entryDescription = $document->createElement('description');
+                $entry->appendChild($entryDescription);
+                $entryDescription->appendChild($document->createTextNode($itemContent));
+            }
 
-		// Remove invalid non-UTF8 characters
-		ini_set('mbstring.substitute_character', 'none');
-		$toReturn = mb_convert_encoding($toReturn, $this->getCharset(), 'UTF-8');
-		return $toReturn;
-	}
+            foreach ($item->getEnclosures() as $enclosure) {
+                $entryEnclosure = $document->createElementNS(self::MRSS_NS, 'content');
+                $entry->appendChild($entryEnclosure);
+                $entryEnclosure->setAttribute('url', $enclosure);
+                $entryEnclosure->setAttribute('type', parse_mime_type($enclosure));
+            }
 
-	public function display(){
-		$this
-			->setContentType(self::MIME_TYPE . '; charset=' . $this->getCharset())
-			->callContentType();
+            foreach ($item->getCategories() as $category) {
+                $entryCategory = $document->createElement('category');
+                $entry->appendChild($entryCategory);
+                $entryCategory->appendChild($document->createTextNode($category));
+            }
+        }
 
-		return parent::display();
-	}
-
-	private function xml_encode($text){
-		return htmlspecialchars($text, ENT_XML1);
-	}
+        $xml = $document->saveXML();
+        return $xml;
+    }
 }

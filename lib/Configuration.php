@@ -1,300 +1,204 @@
 <?php
-/**
- * This file is part of RSS-Bridge, a PHP project capable of generating RSS and
- * Atom feeds for websites that don't have one.
- *
- * For the full license information, please view the UNLICENSE file distributed
- * with this source code.
- *
- * @package	Core
- * @license	http://unlicense.org/ UNLICENSE
- * @link	https://github.com/rss-bridge/rss-bridge
- */
 
 /**
  * Configuration module for RSS-Bridge.
  *
  * This class implements a configuration module for RSS-Bridge.
  */
-final class Configuration {
+final class Configuration
+{
+    private const VERSION = '2025-01-26';
 
-	/**
-	 * Holds the current release version of RSS-Bridge.
-	 *
-	 * Do not access this property directly!
-	 * Use {@see Configuration::getVersion()} instead.
-	 *
-	 * @var string
-	 *
-	 * @todo Replace this property by a constant.
-	 */
-	public static $VERSION = 'dev.2021-04-25';
+    private static $config = [];
 
-	/**
-	 * Holds the configuration data.
-	 *
-	 * Do not access this property directly!
-	 * Use {@see Configuration::getConfig()} instead.
-	 *
-	 * @var array|null
-	 */
-	private static $config = null;
+    private function __construct()
+    {
+    }
 
-	/**
-	 * Throw an exception when trying to create a new instance of this class.
-	 *
-	 * @throws \LogicException if called.
-	 */
-	public function __construct(){
-		throw new \LogicException('Can\'t create object of this class!');
-	}
+    public static function loadConfiguration(array $customConfig = [], array $env = [])
+    {
+        if (!file_exists(__DIR__ . '/../config.default.ini.php')) {
+            throw new \Exception('The default configuration file is missing');
+        }
+        $config = parse_ini_file(__DIR__ . '/../config.default.ini.php', true, INI_SCANNER_TYPED);
+        if (!$config) {
+            throw new \Exception('Error parsing ini config');
+        }
+        foreach ($config as $header => $section) {
+            foreach ($section as $key => $value) {
+                self::setConfig($header, $key, $value);
+            }
+        }
+        foreach ($customConfig as $header => $section) {
+            foreach ($section as $key => $value) {
+                self::setConfig($header, $key, $value);
+            }
+        }
 
-	/**
-	 * Verifies the current installation of RSS-Bridge and PHP.
-	 *
-	 * Returns an error message and aborts execution if the installation does
-	 * not satisfy the requirements of RSS-Bridge.
-	 *
-	 * **Requirements**
-	 * - PHP 5.6.0 or higher
-	 * - `openssl` extension
-	 * - `libxml` extension
-	 * - `mbstring` extension
-	 * - `simplexml` extension
-	 * - `curl` extension
-	 * - `json` extension
-	 * - The cache folder specified by {@see PATH_CACHE} requires write permission
-	 * - The whitelist file specified by {@see WHITELIST} requires write permission
-	 *
-	 * @link http://php.net/supported-versions.php PHP Supported Versions
-	 * @link http://php.net/manual/en/book.openssl.php OpenSSL
-	 * @link http://php.net/manual/en/book.libxml.php libxml
-	 * @link http://php.net/manual/en/book.mbstring.php Multibyte String (mbstring)
-	 * @link http://php.net/manual/en/book.simplexml.php SimpleXML
-	 * @link http://php.net/manual/en/book.curl.php Client URL Library (curl)
-	 * @link http://php.net/manual/en/book.json.php JavaScript Object Notation (json)
-	 *
-	 * @return void
-	 */
-	public static function verifyInstallation() {
+        if (file_exists(__DIR__ . '/../DEBUG')) {
+            // The debug mode has been moved to config. Preserve existing installs which has this DEBUG file.
+            self::setConfig('system', 'enable_debug_mode', true);
+            $debug = trim(file_get_contents(__DIR__ . '/../DEBUG'));
+            if ($debug) {
+                self::setConfig('system', 'debug_mode_whitelist', explode("\n", str_replace("\r", '', $debug)));
+            }
+        }
 
-		// Check PHP version
-		if(version_compare(PHP_VERSION, '5.6.0') === -1)
-			self::reportError('RSS-Bridge requires at least PHP version 5.6.0!');
+        if (file_exists(__DIR__ . '/../whitelist.txt')) {
+            $enabledBridges = trim(file_get_contents(__DIR__ . '/../whitelist.txt'));
+            if ($enabledBridges === '*') {
+                self::setConfig('system', 'enabled_bridges', ['*']);
+            } else {
+                self::setConfig('system', 'enabled_bridges', array_filter(array_map('trim', explode("\n", $enabledBridges))));
+            }
+        }
 
-		// extensions check
-		if(!extension_loaded('openssl'))
-			self::reportError('"openssl" extension not loaded. Please check "php.ini"');
+        foreach ($env as $envName => $envValue) {
+            $nameParts = explode('_', $envName);
+            if ($nameParts[0] === 'RSSBRIDGE') {
+                if (count($nameParts) < 3) {
+                    // Invalid env name
+                    continue;
+                }
 
-		if(!extension_loaded('libxml'))
-			self::reportError('"libxml" extension not loaded. Please check "php.ini"');
+                // The variable is named $header but it's actually the section in config.ini.php
+                $header = $nameParts[1];
 
-		if(!extension_loaded('mbstring'))
-			self::reportError('"mbstring" extension not loaded. Please check "php.ini"');
+                // Recombine the key if it had multiple underscores
+                $key = implode('_', array_slice($nameParts, 2));
+                $key = strtolower($key);
 
-		if(!extension_loaded('simplexml'))
-			self::reportError('"simplexml" extension not loaded. Please check "php.ini"');
+                // Handle this specifically because it's an array
+                if ($key === 'enabled_bridges') {
+                    $envValue = explode(',', $envValue);
+                    $envValue = array_map('trim', $envValue);
+                }
 
-		// Allow RSS-Bridge to run without curl module in CLI mode without root certificates
-		if(!extension_loaded('curl') && !(php_sapi_name() === 'cli' && empty(ini_get('curl.cainfo'))))
-			self::reportError('"curl" extension not loaded. Please check "php.ini"');
+                if ($envValue === 'true' || $envValue === 'false') {
+                    $envValue = filter_var($envValue, FILTER_VALIDATE_BOOLEAN);
+                }
 
-		if(!extension_loaded('json'))
-			self::reportError('"json" extension not loaded. Please check "php.ini"');
+                self::setConfig($header, $key, $envValue);
+            }
+        }
 
-		// Check cache folder permissions (write permissions required)
-		if(!is_writable(PATH_CACHE))
-			self::reportError('RSS-Bridge does not have write permissions for ' . PATH_CACHE . '!');
+        if (Debug::isEnabled()) {
+            self::setConfig('cache', 'type', 'array');
+        }
 
-	}
+        if (!is_array(self::getConfig('system', 'enabled_bridges'))) {
+            self::throwConfigError('system', 'enabled_bridges', 'Is not an array');
+        }
 
-	/**
-	 * Loads the configuration from disk and checks if the parameters are valid.
-	 *
-	 * Returns an error message and aborts execution if the configuration is invalid.
-	 *
-	 * The RSS-Bridge configuration is split into two files:
-	 * - {@see FILE_CONFIG_DEFAULT} The default configuration file that ships
-	 * with every release of RSS-Bridge (do not modify this file!).
-	 * - {@see FILE_CONFIG} The local configuration file that can be modified
-	 * by server administrators.
-	 *
-	 * RSS-Bridge will first load {@see FILE_CONFIG_DEFAULT} into memory and then
-	 * replace parameters with the contents of {@see FILE_CONFIG}. That way new
-	 * parameters are automatically initialized with default values and custom
-	 * configurations can be reduced to the minimum set of parametes necessary
-	 * (only the ones that changed).
-	 *
-	 * The configuration files must be placed in the root folder of RSS-Bridge
-	 * (next to `index.php`).
-	 *
-	 * _Notice_: The configuration is stored in {@see Configuration::$config}.
-	 *
-	 * @return void
-	 */
-	public static function loadConfiguration() {
+        if (
+            !is_string(self::getConfig('system', 'timezone'))
+            || !in_array(self::getConfig('system', 'timezone'), timezone_identifiers_list(DateTimeZone::ALL_WITH_BC))
+        ) {
+            self::throwConfigError('system', 'timezone');
+        }
 
-		if(!file_exists(FILE_CONFIG_DEFAULT))
-			self::reportError('The default configuration file is missing at ' . FILE_CONFIG_DEFAULT);
+        if (!is_bool(self::getConfig('system', 'enable_debug_mode'))) {
+            self::throwConfigError('system', 'enable_debug_mode', 'Is not a valid Boolean');
+        }
+        if (!is_array(self::getConfig('system', 'debug_mode_whitelist') ?: [])) {
+            self::throwConfigError('system', 'debug_mode_whitelist', 'Is not a valid array');
+        }
 
-		Configuration::$config = parse_ini_file(FILE_CONFIG_DEFAULT, true, INI_SCANNER_TYPED);
-		if(!Configuration::$config)
-			self::reportError('Error parsing ' . FILE_CONFIG_DEFAULT);
+        if (!is_string(self::getConfig('proxy', 'url'))) {
+            self::throwConfigError('proxy', 'url', 'Is not a valid string');
+        }
 
-		if(file_exists(FILE_CONFIG)) {
-			// Replace default configuration with custom settings
-			foreach(parse_ini_file(FILE_CONFIG, true, INI_SCANNER_TYPED) as $header => $section) {
-				foreach($section as $key => $value) {
-					Configuration::$config[$header][$key] = $value;
-				}
-			}
-		}
+        if (!is_bool(self::getConfig('proxy', 'by_bridge'))) {
+            self::throwConfigError('proxy', 'by_bridge', 'Is not a valid Boolean');
+        }
 
-		if(!is_string(self::getConfig('system', 'timezone'))
-		|| !in_array(self::getConfig('system', 'timezone'), timezone_identifiers_list(DateTimeZone::ALL_WITH_BC)))
-			self::reportConfigurationError('system', 'timezone');
+        if (!is_string(self::getConfig('proxy', 'name'))) {
+            /** Name of the proxy server */
+            self::throwConfigError('proxy', 'name', 'Is not a valid string');
+        }
 
-		date_default_timezone_set(self::getConfig('system', 'timezone'));
+        if (!is_string(self::getConfig('cache', 'type'))) {
+            self::throwConfigError('cache', 'type', 'Is not a valid string');
+        }
 
-		if(!is_string(self::getConfig('proxy', 'url')))
-			self::reportConfigurationError('proxy', 'url', 'Is not a valid string');
+        if (!is_bool(self::getConfig('cache', 'custom_timeout'))) {
+            self::throwConfigError('cache', 'custom_timeout', 'Is not a valid Boolean');
+        }
 
-		if(!empty(self::getConfig('proxy', 'url'))) {
-			/** URL of the proxy server */
-			define('PROXY_URL', self::getConfig('proxy', 'url'));
-		}
+        if (!is_bool(self::getConfig('authentication', 'enable'))) {
+            self::throwConfigError('authentication', 'enable', 'Is not a valid Boolean');
+        }
 
-		if(!is_bool(self::getConfig('proxy', 'by_bridge')))
-			self::reportConfigurationError('proxy', 'by_bridge', 'Is not a valid Boolean');
+        if (!is_string(self::getConfig('authentication', 'username'))) {
+            self::throwConfigError('authentication', 'username', 'Is not a valid string');
+        }
 
-		/** True if proxy usage can be enabled selectively for each bridge */
-		define('PROXY_BYBRIDGE', self::getConfig('proxy', 'by_bridge'));
+        if (!is_string(self::getConfig('authentication', 'password'))) {
+            self::throwConfigError('authentication', 'password', 'Is not a valid string');
+        }
 
-		if(!is_string(self::getConfig('proxy', 'name')))
-			self::reportConfigurationError('proxy', 'name', 'Is not a valid string');
+        if (
+            !empty(self::getConfig('admin', 'email'))
+            && !filter_var(self::getConfig('admin', 'email'), FILTER_VALIDATE_EMAIL)
+        ) {
+            self::throwConfigError('admin', 'email', 'Is not a valid email address');
+        }
 
-		/** Name of the proxy server */
-		define('PROXY_NAME', self::getConfig('proxy', 'name'));
+        if (!is_bool(self::getConfig('admin', 'donations'))) {
+            self::throwConfigError('admin', 'donations', 'Is not a valid Boolean');
+        }
 
-		if(!is_string(self::getConfig('cache', 'type')))
-			self::reportConfigurationError('cache', 'type', 'Is not a valid string');
+        if (!is_string(self::getConfig('error', 'output'))) {
+            self::throwConfigError('error', 'output', 'Is not a valid String');
+        }
+        if (!in_array(self::getConfig('error', 'output'), ['feed', 'http', 'none'])) {
+            self::throwConfigError('error', 'output', 'Invalid output');
+        }
 
-		if(!is_bool(self::getConfig('cache', 'custom_timeout')))
-			self::reportConfigurationError('cache', 'custom_timeout', 'Is not a valid Boolean');
+        if (
+            !is_numeric(self::getConfig('error', 'report_limit'))
+            || self::getConfig('error', 'report_limit') < 1
+        ) {
+            self::throwConfigError('admin', 'report_limit', 'Value is invalid');
+        }
+    }
 
-		/** True if the cache timeout can be specified by the user */
-		define('CUSTOM_CACHE_TIMEOUT', self::getConfig('cache', 'custom_timeout'));
+    public static function getConfig(string $section, string $key, $default = null)
+    {
+        if (self::$config === []) {
+            throw new \Exception('Config has not been loaded');
+        }
+        return self::$config[strtolower($section)][strtolower($key)] ?? $default;
+    }
 
-		if(!is_bool(self::getConfig('authentication', 'enable')))
-			self::reportConfigurationError('authentication', 'enable', 'Is not a valid Boolean');
+    /**
+     * @internal Please avoid usage
+     */
+    public static function setConfig(string $section, string $key, $value): void
+    {
+        self::$config[strtolower($section)][strtolower($key)] = $value;
+    }
 
-		if(!is_string(self::getConfig('authentication', 'username')))
-			self::reportConfigurationError('authentication', 'username', 'Is not a valid string');
+    public static function getVersion()
+    {
+        $headFile = __DIR__ . '/../.git/HEAD';
 
-		if(!is_string(self::getConfig('authentication', 'password')))
-			self::reportConfigurationError('authentication', 'password', 'Is not a valid string');
+        if (@is_readable($headFile)) {
+            $revisionHashFile = '.git/' . substr(file_get_contents($headFile), 5, -1);
+            $parts = explode('/', $revisionHashFile);
 
-		if(!empty(self::getConfig('admin', 'email'))
-		&& !filter_var(self::getConfig('admin', 'email'), FILTER_VALIDATE_EMAIL))
-			self::reportConfigurationError('admin', 'email', 'Is not a valid email address');
+            if (isset($parts[3])) {
+                $branchName = $parts[3];
+                if (file_exists($revisionHashFile)) {
+                    return sprintf('%s (git.%s.%s)', self::VERSION, $branchName, substr(file_get_contents($revisionHashFile), 0, 7));
+                }
+            }
+        }
+        return self::VERSION;
+    }
 
-		if(!is_bool(self::getConfig('admin', 'donations')))
-		self::reportConfigurationError('admin', 'donations', 'Is not a valid Boolean');
-
-		if(!is_string(self::getConfig('error', 'output')))
-			self::reportConfigurationError('error', 'output', 'Is not a valid String');
-
-		if(!is_numeric(self::getConfig('error', 'report_limit'))
-		|| self::getConfig('error', 'report_limit') < 1)
-			self::reportConfigurationError('admin', 'report_limit', 'Value is invalid');
-
-	}
-
-	/**
-	 * Returns the value of a parameter identified by section and key.
-	 *
-	 * @param string $section The section name.
-	 * @param string $key The property name (key).
-	 * @return mixed|null The parameter value.
-	 */
-	public static function getConfig($section, $key) {
-		if(array_key_exists($section, self::$config) && array_key_exists($key, self::$config[$section])) {
-			return self::$config[$section][$key];
-		}
-
-		return null;
-	}
-
-	/**
-	 * Returns the current version string of RSS-Bridge.
-	 *
-	 * This function returns the contents of {@see Configuration::$VERSION} for
-	 * regular installations and the git branch name and commit id for instances
-	 * running in a git environment.
-	 *
-	 * @return string The version string.
-	 */
-	public static function getVersion() {
-
-		$headFile = PATH_ROOT . '.git/HEAD';
-
-		// '@' is used to mute open_basedir warning
-		if(@is_readable($headFile)) {
-
-			$revisionHashFile = '.git/' . substr(file_get_contents($headFile), 5, -1);
-			$parts = explode('/', $revisionHashFile);
-
-			if(isset($parts[3])) {
-				$branchName = $parts[3];
-				if(file_exists($revisionHashFile)) {
-					return 'git.' . $branchName . '.' . substr(file_get_contents($revisionHashFile), 0, 7);
-				}
-			}
-		}
-
-		return Configuration::$VERSION;
-
-	}
-
-	/**
-	 * Reports an configuration error for the specified section and key to the
-	 * user and ends execution
-	 *
-	 * @param string $section The section name
-	 * @param string $key The configuration key
-	 * @param string $message An optional message to the user
-	 *
-	 * @return void
-	 */
-	private static function reportConfigurationError($section, $key, $message = '') {
-
-		$report = "Parameter [{$section}] => \"{$key}\" is invalid!" . PHP_EOL;
-
-		if(file_exists(FILE_CONFIG)) {
-			$report .= 'Please check your configuration file at ' . FILE_CONFIG . PHP_EOL;
-		} elseif(!file_exists(FILE_CONFIG_DEFAULT)) {
-			$report .= 'The default configuration file is missing at ' . FILE_CONFIG_DEFAULT . PHP_EOL;
-		} else {
-			$report .= 'The default configuration file is broken.' . PHP_EOL
-			. 'Restore the original file from ' . REPOSITORY . PHP_EOL;
-		}
-
-		$report .= $message;
-		self::reportError($report);
-
-	}
-
-	/**
-	 * Reports an error message to the user and ends execution
-	 *
-	 * @param string $message The error message
-	 *
-	 * @return void
-	 */
-	private static function reportError($message) {
-
-		header('Content-Type: text/plain', true, 500);
-		die('Configuration error' . PHP_EOL . $message);
-
-	}
+    private static function throwConfigError($section, $key, $message = '')
+    {
+        throw new \Exception("Config [$section] => [$key] is invalid. $message");
+    }
 }

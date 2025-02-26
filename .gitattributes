@@ -1,5 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+*.sh text eol=lf
 
 # Custom for Visual Studio
 *.cs     diff=csharp
@@ -46,8 +47,6 @@ phpcs.xml                               export-ignore
 phpcompatibility.xml                    export-ignore
 tests/                                  export-ignore
 cache/.gitkeep                          export-ignore
-bridges/DemoBridge.php                  export-ignore
-bridges/FeedExpanderExampleBridge.php   export-ignore
 
 ## Composer
 #

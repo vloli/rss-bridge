@@ -1,109 +1,118 @@
 <?php
-class CNETBridge extends BridgeAbstract {
 
-	const MAINTAINER = 'ORelio';
-	const NAME = 'CNET News';
-	const URI = 'https://www.cnet.com/';
-	const CACHE_TIMEOUT = 3600; // 1h
-	const DESCRIPTION = 'Returns the newest articles.';
-	const PARAMETERS = array(
-		array(
-			'topic' => array(
-				'name' => 'Topic',
-				'type' => 'list',
-				'values' => array(
-					'All articles' => '',
-					'Apple' => 'apple',
-					'Google' => 'google',
-					'Microsoft' => 'tags-microsoft',
-					'Computers' => 'topics-computers',
-					'Mobile' => 'topics-mobile',
-					'Sci-Tech' => 'topics-sci-tech',
-					'Security' => 'topics-security',
-					'Internet' => 'topics-internet',
-					'Tech Industry' => 'topics-tech-industry'
-				)
-			)
-		)
-	);
+class CNETBridge extends SitemapBridge
+{
+    const MAINTAINER = 'ORelio';
+    const NAME = 'CNET News';
+    const URI = 'https://www.cnet.com/';
+    const CACHE_TIMEOUT = 3600; // 1h
+    const DESCRIPTION = 'Returns the newest articles.';
+    const PARAMETERS = [
+        [
+            'topic' => [
+                'name' => 'Topic',
+                'type' => 'list',
+                'values' => [
+                    'All articles' => '',
+                    'Tech' => 'tech',
+                    'Money' => 'personal-finance',
+                    'Home' => 'home',
+                    'Wellness' => 'health',
+                    'Energy' => 'home/energy-and-utilities',
+                    'Deals' => 'deals',
+                    'Computing' => 'tech/computing',
+                    'Mobile' => 'tech/mobile',
+                    'Science' => 'science',
+                    'Services' => 'tech/services-and-software'
+                ]
+            ],
+            'limit' => self::LIMIT
+        ]
+    ];
 
-	private function cleanArticle($article_html) {
-		$offset_p = strpos($article_html, '<p>');
-		$offset_figure = strpos($article_html, '<figure');
-		$offset = ($offset_figure < $offset_p ? $offset_figure : $offset_p);
-		$article_html = substr($article_html, $offset);
-		$article_html = str_replace('href="/', 'href="' . self::URI, $article_html);
-		$article_html = str_replace(' height="0"', '', $article_html);
-		$article_html = str_replace('<noscript>', '', $article_html);
-		$article_html = str_replace('</noscript>', '', $article_html);
-		$article_html = StripWithDelimiters($article_html, '<a class="clickToEnlarge', '</a>');
-		$article_html = stripWithDelimiters($article_html, '<span class="nowPlaying', '</span>');
-		$article_html = stripWithDelimiters($article_html, '<span class="duration', '</span>');
-		$article_html = stripWithDelimiters($article_html, '<script', '</script>');
-		$article_html = stripWithDelimiters($article_html, '<svg', '</svg>');
-		return $article_html;
-	}
+    public function collectData()
+    {
+        $topic = $this->getInput('topic');
+        $limit = $this->getInput('limit');
+        $limit = empty($limit) ? 10 : $limit;
 
-	public function collectData() {
+        $url_pattern = empty($topic) ? '' : self::URI . $topic;
+        $sitemap_latest = self::URI . 'sitemaps/article/' . date('Y/m') . '.xml';
+        $sitemap_previous = self::URI . 'sitemaps/article/' . date('Y/m', strtotime('last day of previous month')) . '.xml';
 
-		// Retrieve and check user input
-		$topic = str_replace('-', '/', $this->getInput('topic'));
-		if (!empty($topic) && (substr_count($topic, '/') > 1 || !ctype_alpha(str_replace('/', '', $topic))))
-			returnClientError('Invalid topic: ' . $topic);
+        $links = array_merge(
+            $this->sitemapXmlToList($this->getSitemapXml($sitemap_latest, true), $url_pattern, $limit),
+            $this->sitemapXmlToList($this->getSitemapXml($sitemap_previous, true), $url_pattern, $limit)
+        );
 
-		// Retrieve webpage
-		$pageUrl = self::URI . (empty($topic) ? 'news/' : $topic . '/');
-		$html = getSimpleHTMLDOM($pageUrl)
-		or returnServerError('Could not request CNET: ' . $pageUrl);
+        if ($limit > 0 && count($links) > $limit) {
+            $links = array_slice($links, 0, $limit);
+        }
 
-		// Process articles
-		foreach($html->find('div.assetBody, div.riverPost') as $element) {
+        if (empty($links)) {
+            returnClientError('Failed to retrieve article list');
+        }
 
-			if(count($this->items) >= 10) {
-				break;
-			}
+        foreach ($links as $article_uri) {
+            $article_dom = convertLazyLoading(getSimpleHTMLDOMCached($article_uri));
+            $title = trim($article_dom->find('h1', 0)->plaintext);
+            $author = $article_dom->find('span.c-assetAuthor_name', 0);
+            $headline = $article_dom->find('p.c-contentHeader_description', 0);
+            $content = $article_dom->find('div.c-pageArticle_content, div.single-article__content, div.article-main-body', 0);
+            $date = null;
+            $enclosure = null;
 
-			$article_title = trim($element->find('h2, h3', 0)->plaintext);
-			$article_uri = self::URI . substr($element->find('a', 0)->href, 1);
-			$article_thumbnail = $element->parent()->find('img[src]', 0)->src;
-			$article_timestamp = strtotime($element->find('time.assetTime, div.timeAgo', 0)->plaintext);
-			$article_author = trim($element->find('a[rel=author], a.name', 0)->plaintext);
-			$article_content = '<p><b>' . trim($element->find('p.dek', 0)->plaintext) . '</b></p>';
+            foreach ($article_dom->find('script[type=application/ld+json]') as $ldjson) {
+                $datePublished = extractFromDelimiters($ldjson->innertext, '"datePublished":"', '"');
+                if ($datePublished !== false) {
+                    $date = strtotime($datePublished);
+                }
+                $imageObject = extractFromDelimiters($ldjson->innertext, 'ImageObject","url":"', '"');
+                if ($imageObject !== false) {
+                    $enclosure = $imageObject;
+                }
+            }
 
-			if (is_null($article_thumbnail))
-				$article_thumbnail = extractFromDelimiters($element->innertext, '<img src="', '"');
+            foreach ($content->find('div.c-shortcodeGallery') as $cleanup) {
+                $cleanup->outertext = '';
+            }
 
-			if (!empty($article_title) && !empty($article_uri) && strpos($article_uri, self::URI . 'news/') !== false) {
+            foreach ($content->find('figure') as $figure) {
+                $img = $figure->find('img', 0);
+                if ($img) {
+                    $figure->outertext = $img->outertext;
+                }
+            }
 
-				$article_html = getSimpleHTMLDOMCached($article_uri) or $article_html = null;
+            $content = $content->innertext;
 
-				if (!is_null($article_html)) {
+            if ($enclosure) {
+                $content = "<div><img src=\"$enclosure\" /></div>" . $content;
+            }
 
-					if (empty($article_thumbnail))
-						$article_thumbnail = $article_html->find('div.originalImage', 0);
-					if (empty($article_thumbnail))
-						$article_thumbnail = $article_html->find('span.imageContainer', 0);
-					if (is_object($article_thumbnail))
-						$article_thumbnail = $article_thumbnail->find('img', 0)->src;
+            if ($headline) {
+                $content = '<p><b>' . $headline->plaintext . '</b></p><br />' . $content;
+            }
 
-					$article_content .= trim(
-						$this->cleanArticle(
-							extractFromDelimiters(
-								$article_html, '<article', '<footer'
-							)
-						)
-					);
-				}
+            $item = [];
+            $item['uri'] = $article_uri;
+            $item['title'] = $title;
 
-				$item = array();
-				$item['uri'] = $article_uri;
-				$item['title'] = $article_title;
-				$item['author'] = $article_author;
-				$item['timestamp'] = $article_timestamp;
-				$item['enclosures'] = array($article_thumbnail);
-				$item['content'] = $article_content;
-				$this->items[] = $item;
-			}
-		}
-	}
+            if ($author) {
+                $item['author'] = $author->plaintext;
+            }
+
+            $item['content'] = $content;
+
+            if (!is_null($date)) {
+                $item['timestamp'] = $date;
+            }
+
+            if (!is_null($enclosure)) {
+                $item['enclosures'] = [$enclosure];
+            }
+
+            $this->items[] = $item;
+        }
+    }
 }
